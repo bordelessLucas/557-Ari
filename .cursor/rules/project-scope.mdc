@@ -1,0 +1,30 @@
+---
+description: Escopo geral do projeto Ari — sistema de atualização automática de notícias. Consultar antes de implementar qualquer sprint.
+alwaysApply: true
+---
+
+# Projeto Ari — Contexto obrigatório
+
+Sistema administrativo para automatizar coleta, análise (IA), revisão e publicação de notícias.
+
+## Referências visuais
+- **Cliente atual:** Agência da Notícia (agenciadanoticia.com.br) — portal MT, nav vermelha, categorias em dropdown
+- **Modelo desejado:** Na Hora do Fato — layout mais limpo, destaque principal, badges de categoria
+
+## Stack
+- Frontend: React, Vite, TS, Tailwind, shadcn/ui
+- Backend: Python, FastAPI, Firebase Admin SDK, Cloud Run
+- Infra: Firebase (Auth, Firestore, Storage), Cloud Scheduler/Tasks/Pub/Sub
+- Coleta: feedparser → Trafilatura/BS4 → Playwright (último recurso)
+- IA: OpenAI API **somente no backend**
+
+## Firestore (coleções iniciais)
+users, sources, categories, collectedNews, articles, reviews, publications, aiJobs, activityLogs, editorialProfiles, portalSettings
+
+## Regras de sprint
+- Implementar SOMENTE o que a sprint pedir
+- Não reconstruir/remover o que já funciona
+- Não antecipar funcionalidades futuras
+- Não expor credenciais no frontend
+- Reutilizar código existente; evitar overengineering
+- Escopo completo: `docs/ESCOPO-GERAL.md`

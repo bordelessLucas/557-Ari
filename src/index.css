@@ -1,0 +1,87 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Tipografia */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, sans-serif;
+
+  /* Navy — cor principal (logo, header) */
+  --color-navy-50: #eef4fb;
+  --color-navy-100: #d5e4f3;
+  --color-navy-200: #adc8e6;
+  --color-navy-300: #7aa5d4;
+  --color-navy-400: #4a7fbb;
+  --color-navy-500: #2d629f;
+  --color-navy-600: #1e4976;
+  --color-navy-700: #183a60;
+  --color-navy-800: #152f4d;
+  --color-navy-900: #122640;
+  --color-navy-950: #0c1828;
+
+  /* Vermelho — accent (nav, badges, CTAs) */
+  --color-red-50: #fef2f3;
+  --color-red-100: #fde3e6;
+  --color-red-200: #fbcbd1;
+  --color-red-300: #f79daa;
+  --color-red-400: #ef6478;
+  --color-red-500: #e0334f;
+  --color-red-600: #c41e3a;
+  --color-red-700: #a51830;
+  --color-red-800: #8a172c;
+  --color-red-900: #76182b;
+  --color-red-950: #420812;
+
+  /* Semânticos */
+  --color-background: #ffffff;
+  --color-foreground: #122640;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #1e4976;
+  --color-primary: #1e4976;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #c41e3a;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #122640;
+  --color-destructive: #c41e3a;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #15803d;
+  --color-success-foreground: #ffffff;
+  --color-warning: #b45309;
+  --color-warning-foreground: #ffffff;
+
+  /* Raios — logo com cantos arredondados */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  /* Sombras */
+  --shadow-card: 0 1px 3px 0 rgb(18 38 64 / 0.06),
+    0 4px 12px -2px rgb(18 38 64 / 0.08);
+  --shadow-elevated: 0 8px 24px -4px rgb(18 38 64 / 0.12),
+    0 4px 8px -4px rgb(18 38 64 / 0.08);
+  --shadow-glow: 0 0 40px -8px rgb(196 30 58 / 0.25);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: var(--color-border);
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+    letter-spacing: -0.011em;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

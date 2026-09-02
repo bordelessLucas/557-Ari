@@ -1,0 +1,104 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userExists() {
+      return isAuthenticated() && userDoc().exists;
+    }
+
+    function isAdmin() {
+      return userExists() && userDoc().data.role == 'admin';
+    }
+
+    function isUser() {
+      return userExists() && userDoc().data.role == 'user';
+    }
+
+    // ── Usuários ──────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasAll(['email', 'role', 'createdAt', 'name', 'birthDate', 'selectedState'])
+        && request.resource.data.email is string
+        && request.resource.data.name is string
+        && request.resource.data.birthDate is string
+        && request.resource.data.selectedState is string
+        && request.resource.data.role == 'user'
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if isAdmin()
+        || (isOwner(userId)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email', 'birthDate', 'createdAt']));
+
+      allow delete: if isAdmin();
+    }
+
+    // ── Coleções do sistema (escopo futuro) ───────────────────
+    // Leitura: admin e user autenticados | Escrita: somente admin
+
+    match /sources/{docId} {
+      allow read: if isAdmin() || isUser();
+      allow write: if isAdmin();
+    }
+
+    match /categories/{docId} {
+      allow read: if isAdmin() || isUser();
+      allow write: if isAdmin();
+    }
+
+    match /collectedNews/{docId} {
+      allow read: if isAdmin() || isUser();
+      allow write: if isAdmin();
+    }
+
+    match /articles/{docId} {
+      allow read: if isAdmin() || isUser();
+      allow write: if isAdmin();
+    }
+
+    match /reviews/{docId} {
+      allow read: if isAdmin() || isUser();
+      allow write: if isAdmin();
+    }
+
+    match /publications/{docId} {
+      allow read: if isAdmin() || isUser();
+      allow write: if isAdmin();
+    }
+
+    match /aiJobs/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /activityLogs/{docId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /editorialProfiles/{docId} {
+      allow read: if isAdmin() || isUser();
+      allow write: if isAdmin();
+    }
+
+    match /portalSettings/{docId} {
+      allow read: if isAdmin() || isUser();
+      allow write: if isAdmin();
+    }
+  }
+}
