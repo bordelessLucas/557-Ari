@@ -8,6 +8,8 @@ const headingStyles = {
   4: 'text-base font-medium text-foreground',
 } as const
 
+export type TextVariant = 'body' | 'muted' | 'small' | 'lead' | 'caption'
+
 function Heading({
   className,
   level = 1,
@@ -24,16 +26,25 @@ function Text({
   variant = 'body',
   ...props
 }: HTMLAttributes<HTMLParagraphElement> & {
-  variant?: 'body' | 'muted' | 'small' | 'lead'
+  variant?: TextVariant
 }) {
   const styles = {
     body: 'text-[15px] leading-relaxed text-foreground',
     muted: 'text-sm leading-relaxed text-muted-foreground',
     small: 'text-xs leading-normal text-muted-foreground',
     lead: 'text-base leading-relaxed text-muted-foreground sm:text-[17px]',
+    caption:
+      'text-[11px] font-medium uppercase tracking-wider text-muted-foreground',
   } as const
 
   return <p className={cn(styles[variant], className)} {...props} />
 }
 
-export { Heading, Text }
+function Caption({
+  className,
+  ...props
+}: HTMLAttributes<HTMLParagraphElement>) {
+  return <Text variant="caption" className={className} {...props} />
+}
+
+export { Heading, Text, Caption }

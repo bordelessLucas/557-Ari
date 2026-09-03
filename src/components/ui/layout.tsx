@@ -17,7 +17,12 @@ function Container({
 
   return (
     <div
-      className={cn('mx-auto w-full px-4 sm:px-6 lg:px-8', sizes[size], className)}
+      className={cn(
+        'mx-auto w-full px-4 sm:px-6 lg:px-8',
+        'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]',
+        sizes[size],
+        className,
+      )}
       {...props}
     />
   )
@@ -29,7 +34,7 @@ function PageHeader({
 }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('border-b border-border bg-background py-6', className)}
+      className={cn('border-b border-border bg-background py-4 sm:py-6', className)}
       {...props}
     />
   )
@@ -42,4 +47,21 @@ function PageContent({
   return <main className={cn('py-6', className)} {...props} />
 }
 
-export { Container, PageHeader, PageContent }
+/** Shell centralizado para telas de autenticação */
+function AuthShell({
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        'flex min-h-screen items-center justify-center bg-muted px-4 py-10',
+        'pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Container, PageHeader, PageContent, AuthShell }

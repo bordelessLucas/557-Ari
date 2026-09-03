@@ -1,9 +1,15 @@
-import { useState } from 'react'
 import { Clock, Globe, Newspaper } from 'lucide-react'
-import AuthForm from '@/components/auth/AuthForm'
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Heading, Logo, Text } from '@/components/ui'
-
-type AuthView = 'landing' | 'login' | 'register'
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Heading,
+  Logo,
+  Text,
+} from '@/components/ui'
 
 const features = [
   {
@@ -23,18 +29,19 @@ const features = [
   },
 ] as const
 
-export default function Welcome() {
-  const [view, setView] = useState<AuthView>('landing')
+export interface WelcomeProps {
+  onNavigateLogin?: () => void
+  onNavigateRegister?: () => void
+}
 
-  function handleToggleMode() {
-    setView((current) => (current === 'login' ? 'register' : 'login'))
-  }
-
+export default function Welcome({
+  onNavigateLogin,
+  onNavigateRegister,
+}: WelcomeProps) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Painel de marca */}
+      {/* Esquerda — marca */}
       <div className="relative flex flex-col justify-between overflow-hidden bg-navy-900 px-8 py-10 text-white sm:px-12 lg:px-14 lg:py-12">
-        {/* Diagonal da logo */}
         <div
           className="pointer-events-none absolute inset-0 bg-linear-to-br from-navy-900 via-navy-800 to-red-700"
           aria-hidden
@@ -70,8 +77,8 @@ export default function Welcome() {
             variant="lead"
             className="max-w-md text-[15px] leading-relaxed text-navy-100 sm:text-base"
           >
-            Política, economia, agronegócio, esporte e muito mais. Acompanhe
-            os principais acontecimentos do Brasil com a Agência da Notícia.
+            Política, economia, agronegócio, esporte e muito mais. Acompanhe os
+            principais acontecimentos do Brasil com a Agência da Notícia.
           </Text>
 
           <ul className="mt-10 hidden space-y-5 lg:block">
@@ -92,54 +99,47 @@ export default function Welcome() {
         </div>
 
         <p className="relative z-10 text-xs text-navy-300">
-          © {new Date().getFullYear()} Agência da Notícia. Todos os direitos reservados.
+          © {new Date().getFullYear()} Agência da Notícia. Todos os direitos
+          reservados.
         </p>
       </div>
 
-      {/* Painel de acesso */}
+      {/* Direita — acesso */}
       <div className="flex flex-col items-center justify-center bg-background px-6 py-12 sm:px-10">
         <div className="w-full max-w-md">
-          {view === 'landing' ? (
-            <Card className="overflow-hidden border-border/80 shadow-[var(--shadow-elevated)]">
-              <div className="h-1 bg-linear-to-r from-navy-600 via-navy-500 to-red-600" />
-              <CardHeader className="items-center space-y-3 pb-2 text-center lg:items-start lg:text-left">
-                <CardTitle className="text-xl font-semibold tracking-tight">
-                  Bem-vindo
-                </CardTitle>
-                <CardDescription className="max-w-sm text-[15px] leading-relaxed">
-                  Faça login na sua conta para ter acesso às notícias do portal.
-                  Ainda não tem cadastro? Crie sua conta em poucos segundos.
-                </CardDescription>
-              </CardHeader>
+          <Card className="overflow-hidden border-border/80 shadow-[var(--shadow-elevated)]">
+            <div className="h-1 bg-linear-to-r from-navy-600 via-navy-500 to-red-600" />
+            <CardHeader className="items-center space-y-3 pb-2 text-center lg:items-start lg:text-left">
+              <CardTitle className="text-xl font-semibold tracking-tight">
+                Bem-vindo
+              </CardTitle>
+              <CardDescription className="max-w-sm text-[15px] leading-relaxed">
+                Faça login na sua conta para ter acesso às notícias do portal.
+                Ainda não tem cadastro? Crie sua conta em poucos segundos.
+              </CardDescription>
+            </CardHeader>
 
-              <CardContent className="pt-2">
-                <div className="flex w-full flex-col gap-3 sm:flex-row">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="flex-1 shadow-[var(--shadow-card)]"
-                    onClick={() => setView('login')}
-                  >
-                    Entrar
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    className="flex-1"
-                    onClick={() => setView('register')}
-                  >
-                    Cadastrar
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <AuthForm
-              mode={view}
-              onToggleMode={handleToggleMode}
-              onBack={() => setView('landing')}
-            />
-          )}
+            <CardContent className="pt-2">
+              <div className="flex w-full flex-col gap-3 sm:flex-row">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="flex-1 shadow-[var(--shadow-card)]"
+                  onClick={onNavigateLogin}
+                >
+                  Entrar
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="flex-1"
+                  onClick={onNavigateRegister}
+                >
+                  Cadastrar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
