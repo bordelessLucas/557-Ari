@@ -13,6 +13,14 @@ dist-ssr
 *.local
 .firebase
 
+# Secrets / env
+.env
+.env.*
+!.env.example
+backend/.venv/
+backend/serviceAccount.json
+**/serviceAccount*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

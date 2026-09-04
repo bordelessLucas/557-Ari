@@ -69,27 +69,62 @@ service cloud.firestore {
 
     match /sources/{docId} {
       allow read: if isAdmin() || isUser();
-      allow write: if isAdmin();
+
+      allow create: if isAdminFull()
+        && request.resource.data.keys().hasAll([
+          'name', 'siteUrl', 'rssUrl', 'apiUrl', 'kind',
+          'categoryIds', 'status', 'newsCount', 'lastCheckedAt',
+          'createdBy', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.siteUrl is string
+        && request.resource.data.kind in ['rss', 'website', 'api']
+        && request.resource.data.status in ['active', 'inactive']
+        && request.resource.data.categoryIds is list
+        && request.resource.data.newsCount == 0;
+
+      allow update: if isAdminFull()
+        && request.resource.data.name is string
+        && request.resource.data.siteUrl is string
+        && request.resource.data.kind in ['rss', 'website', 'api']
+        && request.resource.data.status in ['active', 'inactive']
+        && request.resource.data.categoryIds is list
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['createdAt', 'createdBy']);
+
+      allow delete: if isAdminFull();
     }
 
     match /categories/{docId} {
       allow read: if isAdmin() || isUser();
-      allow write: if isAdmin();
+
+      allow create, update: if isAdminFull()
+        && request.resource.data.name is string
+        && request.resource.data.slug is string
+        && request.resource.data.active is bool;
+
+      allow delete: if isAdminFull();
     }
 
     match /collectedNews/{docId} {
       allow read: if isAdmin() || isUser();
-      allow write: if isAdmin();
+      // Escrita apenas via Admin SDK (backend de coleta)
+      allow write: if false;
+    }
+
+    match /collectionRuns/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /articles/{docId} {
       allow read: if isAdmin() || isUser();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     match /reviews/{docId} {
-      allow read: if isAdmin() || isUser();
-      allow write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /publications/{docId} {
@@ -99,13 +134,12 @@ service cloud.firestore {
 
     match /aiJobs/{docId} {
       allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     match /activityLogs/{docId} {
       allow read: if isAdmin();
-      allow create: if isAdmin();
-      allow update, delete: if false;
+      allow write: if false;
     }
 
     match /editorialProfiles/{docId} {

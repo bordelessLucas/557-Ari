@@ -40,12 +40,14 @@ Objetivo: base do **painel administrativo** (ferramenta interna), sem área admi
 
 Objetivo: módulo de fontes monitoradas.
 
-- [ ] CRUD de fontes (nome, site/portal, URL, RSS opcional, categorias, status)
-- [ ] Ativar / desativar fonte
-- [ ] Listagem e consulta de todas as fontes
-- [ ] Associação a categorias
-- [ ] Modelo Firestore `sources` (+ vínculo com `categories`)
-- [ ] Preparar arquitetura para RSS, site público e API (sem forçar um único tipo)
+- [x] CRUD de fontes (nome, site/portal, URL, RSS opcional, categorias, status)
+- [x] Ativar / desativar fonte
+- [x] Listagem e consulta de todas as fontes
+- [x] Associação a categorias
+- [x] Modelo Firestore `sources` (+ vínculo com `categories`)
+- [x] Preparar arquitetura para RSS, site público e API (sem forçar um único tipo)
+
+**Nota:** categorias iniciais seedadas a partir do menu do portal atual; lista oficial pode ser ajustada com o cliente.
 
 ---
 
@@ -53,14 +55,16 @@ Objetivo: módulo de fontes monitoradas.
 
 Objetivo: rotina periódica que consulta fontes ativas e registra notícias novas.
 
-- [ ] Backend de coleta (FastAPI + Firebase Admin)
-- [ ] Prioridade: RSS → extração HTML → Playwright se necessário
-- [ ] Capturar: manchete, resumo, URL, imagem, data, fonte, categoria, ID
-- [ ] Anti-duplicidade (URL / ID feed / título / hash)
-- [ ] Persistência em `collectedNews` com status `collected`
-- [ ] Agendamento (Cloud Scheduler / Tasks) — **frequência ainda a definir com o cliente**
-- [ ] Logs de execução por fonte (encontrados, novos, duplicados, erros)
-- [ ] Falha isolada por fonte (não derruba o lote inteiro)
+- [x] Backend de coleta (FastAPI + Firebase Admin)
+- [x] Prioridade: RSS → extração HTML → Playwright se necessário
+- [x] Capturar: manchete, resumo, URL, imagem, data, fonte, categoria, ID
+- [x] Anti-duplicidade (URL / ID feed / título / hash)
+- [x] Persistência em `collectedNews` com status `collected`
+- [x] Agendamento (Cloud Scheduler / Tasks) — **frequência ainda a definir com o cliente**
+- [x] Logs de execução por fonte (encontrados, novos, duplicados, erros)
+- [x] Falha isolada por fonte (não derruba o lote inteiro)
+
+**Nota:** gatilho manual **Coletar agora** no admin (Scheduler pendente de frequência). Playwright fica como fallback futuro; nesta entrega RSS + HTML (Trafilatura/BS4). API de fonte específica ainda não implementada.
 
 ---
 
@@ -69,21 +73,22 @@ Objetivo: rotina periódica que consulta fontes ativas e registra notícias nova
 Objetivo: transformar coletadas em artigos adaptados e revisar manualmente.
 
 ### IA editorial
-- [ ] Job de processamento (`aiJobs` / status `processing`)
-- [ ] Prompt com fatos + contexto editorial (quando existir `editorialProfile`)
-- [ ] Gerar título, resumo e corpo adaptados
-- [ ] Preservar fatos; sinalizar informação insuficiente
-- [ ] Manter vínculo com notícia/fonte original
-- [ ] Encaminhar para status `review`
+- [x] Job de processamento (`aiJobs` / status `processing`)
+- [x] Prompt com fatos + contexto editorial (quando existir `editorialProfile`)
+- [x] Gerar título, resumo e corpo adaptados
+- [x] Preservar fatos; sinalizar informação insuficiente
+- [x] Manter vínculo com notícia/fonte original
+- [x] Encaminhar para status `review`
 
 ### Central de Revisão
-- [ ] Lista de itens aguardando revisão
-- [ ] Comparar original × conteúdo adaptado
-- [ ] Ver fonte, imagem e metadados
-- [ ] Aprovar → `approved` / Rejeitar → `rejected`
-- [ ] Histórico de análises (`reviews` / `activityLogs`)
-- [ ] **Sem** publicação automática nesta sprint
+- [x] Lista de itens aguardando revisão
+- [x] Comparar original × conteúdo adaptado
+- [x] Ver fonte, imagem e metadados
+- [x] Aprovar → `approved` / Rejeitar → `rejected`
+- [x] Histórico de análises (`reviews` / `activityLogs`)
+- [x] **Sem** publicação automática nesta sprint
 
+**Nota:** provedor OpenAI (`gpt-4o-mini`), gatilho manual. Detalhes em `docs-ia/sprint4_ia.md`. Prompt neutro até haver perfil editorial (S8).
 ---
 
 ## Sprint 5 — Publicação no portal

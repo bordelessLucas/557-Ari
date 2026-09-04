@@ -27,7 +27,7 @@ export default function StateSelector({
     onChange(nextState)
 
     try {
-      await updateUserState(uid, nextState)
+      await updateUserState(uid, nextState, { setBy: 'manual' })
     } catch {
       onChange(value)
     } finally {

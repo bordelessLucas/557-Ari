@@ -11,6 +11,8 @@ export interface UserProfile {
   name: string
   birthDate: string
   selectedState: PortalState
+  /** Como a região foi definida: auto (geo/IP) ou manual (usuário) */
+  stateSetBy?: 'auto' | 'manual'
   createdAt: Date | null
   /** Somente para role=admin */
   adminPermission?: AdminPermission

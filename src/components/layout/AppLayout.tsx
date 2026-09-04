@@ -5,7 +5,8 @@ import MainNav from '@/components/layout/MainNav'
 import StateSelector from '@/components/layout/StateSelector'
 import UserMenu from '@/components/layout/UserMenu'
 import { Container, Logo, PageContent, PageHeader } from '@/components/ui'
-import { getUserProfile } from '@/services/userService'
+import { detectPortalState } from '@/lib/detectPortalState'
+import { getUserProfile, updateUserState } from '@/services/userService'
 import type { PortalState } from '@/types/user'
 
 interface AppLayoutProps {
@@ -14,14 +15,46 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ user, children }: AppLayoutProps) {
-  const [selectedState, setSelectedState] = useState<PortalState>(defaultPortalState)
+  const [selectedState, setSelectedState] =
+    useState<PortalState>(defaultPortalState)
 
   useEffect(() => {
-    getUserProfile(user.uid).then((profile) => {
+    let cancelled = false
+
+    async function initRegion() {
+      const profile = await getUserProfile(user.uid)
+
+      // Escolha manual do usuário prevalece
+      if (profile?.stateSetBy === 'manual' && profile.selectedState) {
+        if (!cancelled) setSelectedState(profile.selectedState)
+        return
+      }
+
+      const detected = await detectPortalState()
+
+      if (cancelled) return
+
+      if (detected) {
+        setSelectedState(detected)
+        if (profile?.selectedState !== detected || profile.stateSetBy !== 'auto') {
+          try {
+            await updateUserState(user.uid, detected, { setBy: 'auto' })
+          } catch {
+            // Mantém UI mesmo se o save falhar
+          }
+        }
+        return
+      }
+
       if (profile?.selectedState) {
         setSelectedState(profile.selectedState)
       }
-    })
+    }
+
+    void initRegion()
+    return () => {
+      cancelled = true
+    }
   }, [user.uid])
 
   return (

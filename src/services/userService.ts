@@ -17,6 +17,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { defaultPortalState } from '@/constants/states'
+import { detectPortalStateOrDefault } from '@/lib/detectPortalState'
 import { auth, db } from '@/lib/firebase'
 import type {
   AdminPermission,
@@ -36,6 +37,10 @@ function mapUserProfile(data: Record<string, unknown>): UserProfile {
     name: (data.name as string) ?? '',
     birthDate: (data.birthDate as string) ?? '',
     selectedState: (data.selectedState as PortalState) ?? defaultPortalState,
+    stateSetBy:
+      data.stateSetBy === 'manual' || data.stateSetBy === 'auto'
+        ? data.stateSetBy
+        : undefined,
     createdAt: data.createdAt
       ? (data.createdAt as { toDate: () => Date }).toDate()
       : null,
@@ -46,19 +51,30 @@ function mapUserProfile(data: Record<string, unknown>): UserProfile {
 
 export async function createUserProfile(
   user: User,
-  profileData?: Partial<Pick<UserProfile, 'name' | 'birthDate' | 'selectedState'>>,
+  profileData?: Partial<
+    Pick<UserProfile, 'name' | 'birthDate' | 'selectedState' | 'stateSetBy'>
+  >,
 ): Promise<void> {
   const userRef = doc(db, 'users', user.uid)
   const existing = await getDoc(userRef)
 
   if (existing.exists()) return
 
+  let selectedState = profileData?.selectedState
+  let stateSetBy = profileData?.stateSetBy ?? 'auto'
+
+  if (!selectedState) {
+    selectedState = await detectPortalStateOrDefault()
+    stateSetBy = 'auto'
+  }
+
   await setDoc(userRef, {
     email: user.email ?? '',
     role: 'user',
     name: profileData?.name ?? '',
     birthDate: profileData?.birthDate ?? '',
-    selectedState: profileData?.selectedState ?? defaultPortalState,
+    selectedState,
+    stateSetBy,
     createdAt: serverTimestamp(),
   })
 }
@@ -78,8 +94,12 @@ export async function listAdminProfiles(): Promise<UserProfile[]> {
 export async function updateUserState(
   uid: string,
   selectedState: PortalState,
+  options?: { setBy?: 'auto' | 'manual' },
 ): Promise<void> {
-  await updateDoc(doc(db, 'users', uid), { selectedState })
+  await updateDoc(doc(db, 'users', uid), {
+    selectedState,
+    stateSetBy: options?.setBy ?? 'manual',
+  })
 }
 
 export async function signIn(email: string, password: string): Promise<User> {
@@ -96,9 +116,14 @@ export async function signUp(data: SignUpData): Promise<User> {
   )
 
   await updateProfile(credential.user, { displayName: data.name })
+
+  const selectedState = await detectPortalStateOrDefault()
+
   await createUserProfile(credential.user, {
     name: data.name.trim(),
     birthDate: data.birthDate,
+    selectedState,
+    stateSetBy: 'auto',
   })
 
   return credential.user

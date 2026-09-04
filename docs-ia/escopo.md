@@ -147,7 +147,11 @@ Não recriar sem necessidade:
 - Topbar, navbar (categorias, busca base), seletor de estado, menu de conta
 - Hosting Firebase (`https://ari-b0f40.web.app`)
 
-**Pendente em relação ao escopo admin:** painel administrativo dedicado, recuperação de senha, CRUD de fontes, coleta, IA, revisão, publicação e dashboard operacional.
+**Já na Sprint 1–4:** painel admin, permissões full/view, CRUD de fontes, coleta → `collectedNews`, processamento OpenAI → `articles` + central de revisão (aprovar/rejeitar sem publicar).
+
+**Pendente em relação ao escopo admin:** publicação no portal, dashboard operacional 100% real, perfil editorial completo.
+
+Detalhes técnicos da IA: `docs-ia/sprint4_ia.md`.
 
 ---
 
@@ -156,12 +160,12 @@ Não recriar sem necessidade:
 - Nome definitivo / identidade editorial escrita do portal
 - Tecnologia/CMS do portal e forma de publicação
 - Lista inicial de fontes e categorias oficiais
-- Frequência de coleta
-- Provedor e modelo de IA
-- Volume esperado de notícias/dia
+- Frequência de coleta e de processamento automático por IA
+- Confirmação definitiva do modelo OpenAI (`gpt-4o-mini` default técnico)
+- Volume esperado de notícias/dia e limites de billing
 - Regras de uso de imagens e SEO
 - Publicação automática sem revisão (futuro)
-- Níveis detalhados de permissão além de admin/user
+- Níveis detalhados de permissão além de admin full/view
 
 ---
 
