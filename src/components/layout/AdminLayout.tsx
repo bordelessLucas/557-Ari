@@ -36,6 +36,7 @@ interface AdminLayoutProps {
   profile: UserProfile
   activeNav: AdminPageId
   onNavigate: (page: AdminPageId) => void
+  onOpenPortal?: () => void
   children: ReactNode
 }
 
@@ -44,6 +45,7 @@ export default function AdminLayout({
   profile,
   activeNav,
   onNavigate,
+  onOpenPortal,
   children,
 }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -105,10 +107,20 @@ export default function AdminLayout({
             {user.email}
           </Text>
           <p className="mt-1 text-xs text-navy-200">{permissionLabel}</p>
+          {onOpenPortal && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-3 w-full justify-start border border-white/20 text-white hover:bg-white/10"
+              onClick={onOpenPortal}
+            >
+              Ver portal do leitor
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
-            className="mt-3 w-full justify-start border border-white/20 text-white hover:bg-white/10"
+            className="mt-2 w-full justify-start border border-white/20 text-white hover:bg-white/10"
             onClick={handleLogout}
           >
             <LogOut className="size-4" />
@@ -140,6 +152,11 @@ export default function AdminLayout({
             </div>
 
             <div className="flex items-center gap-2">
+              {onOpenPortal && (
+                <Button variant="outline" size="sm" onClick={onOpenPortal}>
+                  Ver portal
+                </Button>
+              )}
               <span className="hidden rounded-md bg-navy-50 px-2.5 py-1 text-xs font-medium text-navy-700 sm:inline">
                 {permissionLabel}
               </span>

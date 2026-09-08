@@ -17,38 +17,67 @@ function mapCategory(id: string, data: Record<string, unknown>): Category {
   return {
     id,
     name: (data.name as string) ?? '',
-    slug: (data.slug as string) ?? '',
+    slug: (data.slug as string) ?? id,
     active: data.active !== false,
     createdAt: createdAt?.toDate?.() ?? null,
   }
 }
 
+/** Categorias do menu do portal — sempre disponíveis na UI. */
+export function portalCategoriesFallback(): Category[] {
+  return newsCategories.flat().map((item) => ({
+    id: item.slug,
+    name: item.label,
+    slug: item.slug,
+    active: true,
+    createdAt: null,
+  }))
+}
+
 export async function listCategories(): Promise<Category[]> {
-  const snapshot = await getDocs(
-    query(collection(db, 'categories'), orderBy('name', 'asc')),
-  )
-  return snapshot.docs.map((item) => mapCategory(item.id, item.data()))
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, 'categories'), orderBy('name', 'asc')),
+    )
+    return snapshot.docs.map((item) => mapCategory(item.id, item.data()))
+  } catch {
+    const snapshot = await getDocs(collection(db, 'categories'))
+    return snapshot.docs
+      .map((item) => mapCategory(item.id, item.data()))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  }
 }
 
 /**
- * Se a coleção estiver vazia, popula com as categorias do portal atual do cliente.
- * Categorias oficiais definitivas ainda podem ser ajustadas depois.
+ * Garante categorias no Firestore; se falhar a escrita, devolve fallback do portal
+ * para o formulário de fontes nunca ficar sem opções.
  */
 export async function ensureDefaultCategories(): Promise<Category[]> {
-  const existing = await listCategories()
-  if (existing.length > 0) return existing
+  try {
+    const existing = await listCategories()
+    if (existing.length > 0) {
+      return existing.filter((item) => item.active)
+    }
 
-  const flat = newsCategories.flat()
-  await Promise.all(
-    flat.map((item) =>
-      setDoc(doc(db, 'categories', item.slug), {
-        name: item.label,
-        slug: item.slug,
-        active: true,
-        createdAt: serverTimestamp(),
-      }),
-    ),
-  )
+    const flat = newsCategories.flat()
+    for (const item of flat) {
+      await setDoc(
+        doc(db, 'categories', item.slug),
+        {
+          name: item.label,
+          slug: item.slug,
+          active: true,
+          createdAt: serverTimestamp(),
+        },
+        { merge: true },
+      )
+    }
 
-  return listCategories()
+    const seeded = await listCategories()
+    if (seeded.length > 0) return seeded.filter((item) => item.active)
+  } catch {
+    // Fallback abaixo
+  }
+
+  return portalCategoriesFallback()
 }

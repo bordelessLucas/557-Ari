@@ -1,42 +1,47 @@
 import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { type User } from 'firebase/auth'
 import AppLayout from '@/components/layout/AppLayout'
 import NewsFeed from '@/components/portal/NewsFeed'
-import { Container } from '@/components/ui'
+import { Container, Text } from '@/components/ui'
+import { newsCategories } from '@/constants/navigation'
+import {
+  listPortalArticlesByCategory,
+} from '@/services/articleService'
 import { listCategories } from '@/services/categoryService'
-import { listPortalArticles } from '@/services/articleService'
-import { getFirstName, getUserProfile } from '@/services/userService'
 import type { Article } from '@/types/article'
 
-interface HomeProps {
+interface CategoryPageProps {
   user: User
 }
 
-export default function Home({ user }: HomeProps) {
-  const [userName, setUserName] = useState(
-    getFirstName(user.displayName || user.email || 'Leitor'),
-  )
+function resolveCategoryLabel(
+  slug: string,
+  categoryNames: Record<string, string>,
+): string {
+  if (categoryNames[slug]) return categoryNames[slug]
+  const fromNav = newsCategories.flat().find((item) => item.slug === slug)
+  return fromNav?.label ?? slug
+}
+
+export default function CategoryPage({ user }: CategoryPageProps) {
+  const { categorySlug = '' } = useParams<{ categorySlug: string }>()
   const [articles, setArticles] = useState<Article[]>([])
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    getUserProfile(user.uid).then((profile) => {
-      if (profile?.name) {
-        setUserName(getFirstName(profile.name))
-      }
-    })
-  }, [user.uid])
+  const label = resolveCategoryLabel(categorySlug, categoryNames)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
+      if (!categorySlug) return
       setLoading(true)
       setError(null)
       try {
         const [list, categories] = await Promise.all([
-          listPortalArticles(24),
+          listPortalArticlesByCategory(categorySlug, 40),
           listCategories().catch(() => []),
         ])
         if (cancelled) return
@@ -52,7 +57,7 @@ export default function Home({ user }: HomeProps) {
           setError(
             err instanceof Error
               ? err.message
-              : 'Não foi possível carregar o feed.',
+              : 'Não foi possível carregar esta categoria.',
           )
         }
       } finally {
@@ -63,18 +68,28 @@ export default function Home({ user }: HomeProps) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [categorySlug])
 
   return (
     <AppLayout user={user}>
-      <Container size="lg">
+      <Container size="lg" className="space-y-4">
+        <Text variant="small">
+          <Link to="/" className="text-navy-600 hover:underline">
+            Início
+          </Link>
+          <span className="text-muted-foreground"> / Notícias / </span>
+          <span className="font-medium text-foreground">{label}</span>
+        </Text>
+
         <NewsFeed
-          title={`Olá, ${userName}`}
-          subtitle="Acompanhe as principais notícias publicadas no portal."
+          title={label}
+          subtitle={`Matérias publicadas na categoria ${label}.`}
           articles={articles}
           categoryNames={categoryNames}
           loading={loading}
           error={error}
+          emptyTitle={`Nenhuma matéria em ${label}`}
+          emptyDescription="Publique matérias desta categoria no admin para preenchê-la."
         />
       </Container>
     </AppLayout>

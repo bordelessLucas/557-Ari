@@ -11,27 +11,31 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function userDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
     }
 
     function userExists() {
-      return isAuthenticated() && userDoc().exists;
+      return isAuthenticated() && exists(userPath());
+    }
+
+    function userData() {
+      return get(userPath()).data;
     }
 
     function isAdmin() {
-      return userExists() && userDoc().data.role == 'admin';
+      return userExists() && userData().role == 'admin';
     }
 
     function isAdminFull() {
       return isAdmin() && (
-        userDoc().data.isPrincipal == true
-        || userDoc().data.adminPermission == 'full'
+        userData().isPrincipal == true
+        || userData().adminPermission == 'full'
       );
     }
 
     function isUser() {
-      return userExists() && userDoc().data.role == 'user';
+      return userExists() && userData().role == 'user';
     }
 
     // ── Usuários ──────────────────────────────────────────────
@@ -64,24 +68,25 @@ service cloud.firestore {
       allow delete: if isAdminFull();
     }
 
-    // ── Coleções do sistema (escopo futuro) ───────────────────
-    // Leitura: admin e user autenticados | Escrita: somente admin
-
     match /sources/{docId} {
       allow read: if isAdmin() || isUser();
 
       allow create: if isAdminFull()
-        && request.resource.data.keys().hasAll([
-          'name', 'siteUrl', 'rssUrl', 'apiUrl', 'kind',
-          'categoryIds', 'status', 'newsCount', 'lastCheckedAt',
-          'createdBy', 'createdAt', 'updatedAt'
-        ])
         && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() < 200
         && request.resource.data.siteUrl is string
+        && request.resource.data.siteUrl.size() > 0
         && request.resource.data.kind in ['rss', 'website', 'api']
         && request.resource.data.status in ['active', 'inactive']
         && request.resource.data.categoryIds is list
-        && request.resource.data.newsCount == 0;
+        && request.resource.data.newsCount is int
+        && request.resource.data.newsCount == 0
+        && request.resource.data.createdBy is string
+        && request.resource.data.keys().hasAll([
+          'name', 'siteUrl', 'kind', 'categoryIds', 'status',
+          'newsCount', 'createdBy', 'createdAt', 'updatedAt'
+        ]);
 
       allow update: if isAdminFull()
         && request.resource.data.name is string
@@ -108,7 +113,6 @@ service cloud.firestore {
 
     match /collectedNews/{docId} {
       allow read: if isAdmin() || isUser();
-      // Escrita apenas via Admin SDK (backend de coleta)
       allow write: if false;
     }
 
@@ -129,7 +133,7 @@ service cloud.firestore {
 
     match /publications/{docId} {
       allow read: if isAdmin() || isUser();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     match /aiJobs/{docId} {

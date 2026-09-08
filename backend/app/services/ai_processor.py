@@ -50,9 +50,25 @@ def _require_openai_client() -> OpenAI:
     if not settings.openai_api_key:
         raise ValueError(
             "OPENAI_API_KEY não configurada no backend. "
-            "Defina a chave em backend/.env para processar com IA."
+            "Defina a chave em backend/.env ou use AI_MODE=passthrough."
         )
     return OpenAI(api_key=settings.openai_api_key)
+
+
+def _passthrough_adapt(news: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Sem OpenAI: monta artigo editorial a partir do texto coletado."""
+    title = (news.get("title") or "").strip() or "Sem título"
+    summary = (news.get("summary") or "").strip() or title
+    body = (news.get("rawExcerpt") or summary or title).strip()
+    return {
+        "adaptedTitle": title[:500],
+        "adaptedSummary": summary[:2000],
+        "adaptedBody": body[:20000],
+        "insufficientInfo": len(body) < 120,
+        "warnings": [
+            "Modo passthrough (sem OpenAI): conteúdo original, sem adaptação editorial."
+        ],
+    }, {"promptTokens": 0, "completionTokens": 0, "totalTokens": 0}
 
 
 def _parse_ai_json(content: str) -> dict[str, Any]:
@@ -87,14 +103,25 @@ def _call_openai(news: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         original_url=news.get("originalUrl") or "",
     )
 
-    response = client.chat.completions.create(
-        model=settings.openai_model,
-        temperature=0.3,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
+    def _request():
+        return client.chat.completions.create(
+            model=settings.openai_model,
+            temperature=0.3,
+            timeout=60.0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+
+    from app.services.retries import with_backoff
+
+    response = with_backoff(
+        _request,
+        attempts=3,
+        base_delay=1.0,
+        label="openai.chat.completions",
     )
     content = response.choices[0].message.content or ""
     parsed = _parse_ai_json(content)
@@ -148,7 +175,8 @@ def _fetch_collected_batch(
 def _process_one(
     news_id: str,
     news: dict[str, Any],
-    admin: AdminUser,
+    *,
+    triggered_by: str,
 ) -> AiItemResult:
     db = get_db()
     settings = get_settings()
@@ -161,9 +189,17 @@ def _process_one(
             "status": "running",
             "error": None,
             "tokensUsage": None,
-            "model": settings.openai_model,
-            "promptVersion": PROMPT_VERSION,
-            "triggeredBy": admin.uid,
+            "model": (
+                settings.openai_model
+                if settings.effective_ai_mode == "openai"
+                else "passthrough"
+            ),
+            "promptVersion": (
+                PROMPT_VERSION
+                if settings.effective_ai_mode == "openai"
+                else "passthrough_v1"
+            ),
+            "triggeredBy": triggered_by,
             "createdAt": SERVER_TIMESTAMP,
             "finishedAt": None,
         }
@@ -173,7 +209,15 @@ def _process_one(
     )
 
     try:
-        adapted, usage = _call_openai(news)
+        if settings.effective_ai_mode == "openai":
+            adapted, usage = _call_openai(news)
+            model_name = settings.openai_model
+            prompt_version = PROMPT_VERSION
+        else:
+            adapted, usage = _passthrough_adapt(news)
+            model_name = "passthrough"
+            prompt_version = "passthrough_v1"
+
         article_ref = db.collection("articles").document()
         article_ref.set(
             {
@@ -192,8 +236,8 @@ def _process_one(
                 "aiWarnings": adapted["warnings"],
                 "status": "review",
                 "aiJobId": job_id,
-                "model": settings.openai_model,
-                "promptVersion": PROMPT_VERSION,
+                "model": model_name,
+                "promptVersion": prompt_version,
                 "createdAt": SERVER_TIMESTAMP,
                 "updatedAt": SERVER_TIMESTAMP,
                 "reviewedAt": None,
@@ -223,7 +267,7 @@ def _process_one(
             {
                 "type": "ai",
                 "action": "process_succeeded",
-                "userId": admin.uid,
+                "userId": triggered_by,
                 "collectedNewsId": news_id,
                 "articleId": article_ref.id,
                 "aiJobId": job_id,
@@ -252,7 +296,7 @@ def _process_one(
             {
                 "type": "ai",
                 "action": "process_failed",
-                "userId": admin.uid,
+                "userId": triggered_by,
                 "collectedNewsId": news_id,
                 "aiJobId": job_id,
                 "detail": str(exc),
@@ -268,22 +312,54 @@ def _process_one(
         )
 
 
+def sweep_stuck_processing(max_age_minutes: int = 30) -> int:
+    """Reabre itens travados em processing para error (elegível a reprocessar)."""
+    from datetime import datetime, timedelta, timezone
+
+    db = get_db()
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+    docs = (
+        db.collection("collectedNews")
+        .where("status", "==", "processing")
+        .limit(50)
+        .stream()
+    )
+    fixed = 0
+    for doc in docs:
+        data = doc.to_dict() or {}
+        updated = data.get("aiProcessedAt") or data.get("collectedAt")
+        # Sem timestamp confiável: sempre libera após sweep
+        should_fix = True
+        if updated is not None and hasattr(updated, "timestamp"):
+            try:
+                should_fix = updated.timestamp() < cutoff.timestamp()
+            except Exception:
+                should_fix = True
+        if should_fix:
+            doc.reference.update({"status": "error"})
+            fixed += 1
+    return fixed
+
+
 def run_ai_process(
-    admin: AdminUser,
+    admin: AdminUser | None = None,
     *,
     collected_news_id: str | None = None,
     ids: list[str] | None = None,
+    triggered_by: str | None = None,
 ) -> AiProcessResult:
     settings = get_settings()
-    # Valida chave cedo
-    _require_openai_client()
+    if settings.effective_ai_mode == "openai":
+        _require_openai_client()
+    actor = triggered_by or (admin.uid if admin else "system")
+
+    sweep_stuck_processing()
 
     batch = _fetch_collected_batch(
         collected_news_id,
         ids,
         limit=settings.ai_max_batch,
     )
-    # Filtra já processados quando buscando lote por status
     if not collected_news_id and not ids:
         batch = [
             (nid, data)
@@ -296,7 +372,7 @@ def run_ai_process(
         return result
 
     for news_id, news in batch:
-        item = _process_one(news_id, news, admin)
+        item = _process_one(news_id, news, triggered_by=actor)
         result.processed += 1
         if item.success:
             result.succeeded += 1

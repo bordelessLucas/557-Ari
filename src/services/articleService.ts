@@ -1,5 +1,7 @@
 import {
   collection,
+  doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -44,6 +46,8 @@ function mapArticle(id: string, data: Record<string, unknown>): Article {
     reviewedAt: toDate(data.reviewedAt),
     reviewedBy: (data.reviewedBy as string | null) ?? null,
     rejectionReason: (data.rejectionReason as string | null) ?? null,
+    publishedAt: toDate(data.publishedAt),
+    publishedBy: (data.publishedBy as string | null) ?? null,
   }
 }
 
@@ -64,6 +68,48 @@ export async function listArticlesByStatus(
 
   const snapshot = await getDocs(q)
   return snapshot.docs.map((item) => mapArticle(item.id, item.data()))
+}
+
+/** Matérias visíveis no portal do leitor. */
+export async function listPortalArticles(maxItems = 20): Promise<Article[]> {
+  const q = query(
+    collection(db, 'articles'),
+    where('status', '==', 'published'),
+    orderBy('publishedAt', 'desc'),
+    limit(maxItems),
+  )
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map((item) => mapArticle(item.id, item.data()))
+}
+
+/** Matérias publicadas filtradas por categoria (slug/id em categoryIds). */
+export async function listPortalArticlesByCategory(
+  categoryId: string,
+  maxItems = 40,
+): Promise<Article[]> {
+  try {
+    const q = query(
+      collection(db, 'articles'),
+      where('status', '==', 'published'),
+      where('categoryIds', 'array-contains', categoryId),
+      orderBy('publishedAt', 'desc'),
+      limit(maxItems),
+    )
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map((item) => mapArticle(item.id, item.data()))
+  } catch {
+    // Fallback enquanto o índice composto sobe / se a query falhar
+    const all = await listPortalArticles(80)
+    return all
+      .filter((item) => item.categoryIds.includes(categoryId))
+      .slice(0, maxItems)
+  }
+}
+
+export async function getArticleById(id: string): Promise<Article | null> {
+  const snap = await getDoc(doc(db, 'articles', id))
+  if (!snap.exists()) return null
+  return mapArticle(snap.id, snap.data())
 }
 
 export function formatArticleDate(value: Date | null): string {

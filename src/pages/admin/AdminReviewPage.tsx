@@ -18,6 +18,7 @@ import { auth } from '@/lib/firebase'
 import {
   approveArticle,
   isAiApiConfigured,
+  publishArticle,
   rejectArticle,
 } from '@/services/aiApi'
 import {
@@ -82,7 +83,7 @@ export default function AdminReviewPage({ viewOnly }: Props) {
       if (!user) throw new Error('Sessão expirada.')
       const token = await user.getIdToken()
       await approveArticle(article.id, token)
-      setSuccess(`Aprovado: ${article.adaptedTitle}`)
+      setSuccess(`Aprovado e publicado no portal: ${article.adaptedTitle}`)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao aprovar.')
@@ -110,6 +111,25 @@ export default function AdminReviewPage({ viewOnly }: Props) {
     }
   }
 
+  async function handlePublish(article: Article) {
+    if (viewOnly) return
+    setActingId(article.id)
+    setError(null)
+    setSuccess(null)
+    try {
+      const user = auth.currentUser
+      if (!user) throw new Error('Sessão expirada.')
+      const token = await user.getIdToken()
+      await publishArticle(article.id, token)
+      setSuccess(`Publicado no portal: ${article.adaptedTitle}`)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao publicar.')
+    } finally {
+      setActingId(null)
+    }
+  }
+
   function categoryLabel(ids: string[]): string {
     if (!ids.length) return '—'
     return ids.map((id) => categoryNames[id] ?? id).join(', ')
@@ -123,7 +143,8 @@ export default function AdminReviewPage({ viewOnly }: Props) {
         <div>
           <Heading level={2}>Aguardando revisão</Heading>
           <Text variant="muted" className="mt-1">
-            Compare o original com a versão adaptada pela IA antes de publicar.
+            Compare o original com a versão da IA. Ao aprovar, a matéria já
+            entra no feed do portal.
           </Text>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -138,6 +159,7 @@ export default function AdminReviewPage({ viewOnly }: Props) {
           >
             <option value="review">Em revisão</option>
             <option value="approved">Aprovados</option>
+            <option value="published">Publicados</option>
             <option value="rejected">Rejeitados</option>
             <option value="all">Todos</option>
           </select>
@@ -302,7 +324,7 @@ export default function AdminReviewPage({ viewOnly }: Props) {
                         disabled={!isAiApiConfigured()}
                         onClick={() => void handleApprove(item)}
                       >
-                        Aprovar
+                        Aprovar e publicar
                       </Button>
                       <Button
                         type="button"
@@ -314,6 +336,28 @@ export default function AdminReviewPage({ viewOnly }: Props) {
                         Rejeitar
                       </Button>
                     </div>
+                  </div>
+                )}
+
+                {!viewOnly && item.status === 'approved' && (
+                  <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                    <Button
+                      type="button"
+                      loading={actingId === item.id}
+                      disabled={!isAiApiConfigured()}
+                      onClick={() => void handlePublish(item)}
+                    >
+                      Publicar no portal
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      loading={actingId === item.id}
+                      disabled={!isAiApiConfigured()}
+                      onClick={() => void handleReject(item)}
+                    >
+                      Rejeitar
+                    </Button>
                   </div>
                 )}
               </CardContent>

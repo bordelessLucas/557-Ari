@@ -112,10 +112,18 @@ def _persist_item(
         original_url=item.original_url,
         external_id=item.external_id,
         source_id=source_id,
+        title=item.title,
     ):
         return False
 
     db = get_db()
+    digest = content_hash(item.original_url, item.title)
+    # Doc ID determinístico reduz corrida de duplicatas no mesmo URL.
+    doc_id = digest[:40]
+    ref = db.collection("collectedNews").document(doc_id)
+    if ref.get().exists:
+        return False
+
     payload = {
         "title": item.title,
         "summary": item.summary,
@@ -127,52 +135,57 @@ def _persist_item(
         "sourceName": source.get("name") or "",
         "categoryIds": source.get("categoryIds") or [],
         "externalId": item.external_id,
-        "contentHash": content_hash(item.original_url, item.title),
+        "contentHash": digest,
         "status": "collected",
         "rawExcerpt": item.raw_excerpt,
         "triggeredBy": triggered_by,
     }
-    db.collection("collectedNews").add(payload)
+    ref.set(payload)
     return True
 
 
 def _update_source_stats(source_id: str, created: int) -> None:
     db = get_db()
     ref = db.collection("sources").document(source_id)
-    snap = ref.get()
-    current = 0
-    if snap.exists:
-        current = int((snap.to_dict() or {}).get("newsCount") or 0)
-    ref.update(
-        {
-            "lastCheckedAt": SERVER_TIMESTAMP,
-            "updatedAt": SERVER_TIMESTAMP,
-            "newsCount": current + created,
-        }
-    )
+    updates: dict[str, Any] = {
+        "lastCheckedAt": SERVER_TIMESTAMP,
+        "updatedAt": SERVER_TIMESTAMP,
+    }
+    if created:
+        updates["newsCount"] = firestore.Increment(created)
+    ref.update(updates)
 
 
 def _write_run_logs(
     run_id: str,
-    admin: AdminUser,
+    *,
+    triggered_by: str,
+    triggered_by_email: str | None,
     results: list[SourceCollectResult],
+    status: str = "succeeded",
 ) -> None:
     db = get_db()
     now = datetime.now(timezone.utc)
+    errors = [r.error for r in results if r.error]
+    run_status = "failed" if errors and not any(r.created for r in results) else status
+    if errors and any(r.created for r in results):
+        run_status = "partial"
 
     db.collection("collectionRuns").document(run_id).set(
         {
             "runId": run_id,
-            "triggeredBy": admin.uid,
-            "triggeredByEmail": admin.email,
+            "status": run_status,
+            "triggeredBy": triggered_by,
+            "triggeredByEmail": triggered_by_email,
             "createdAt": SERVER_TIMESTAMP,
             "finishedAt": now,
             "totalFound": sum(r.found for r in results),
             "totalCreated": sum(r.created for r in results),
             "totalDuplicated": sum(r.duplicated for r in results),
             "sourceCount": len(results),
-            "errors": [r.error for r in results if r.error],
-        }
+            "errors": errors,
+        },
+        merge=True,
     )
 
     for result in results:
@@ -180,7 +193,7 @@ def _write_run_logs(
             {
                 "type": "collect",
                 "action": "source_collect",
-                "userId": admin.uid,
+                "userId": triggered_by,
                 "sourceId": result.source_id,
                 "sourceName": result.source_name,
                 "detail": (
@@ -202,13 +215,30 @@ def _write_run_logs(
 
 
 def run_collection(
-    admin: AdminUser,
+    admin: AdminUser | None = None,
     source_id: str | None = None,
+    *,
+    triggered_by: str | None = None,
+    triggered_by_email: str | None = None,
 ) -> CollectRunResult:
     settings = get_settings()
     limit = settings.collect_max_items_per_source
     sources = _fetch_active_sources(source_id)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+    actor_id = triggered_by or (admin.uid if admin else "system")
+    actor_email = triggered_by_email or (admin.email if admin else None)
+
+    db = get_db()
+    db.collection("collectionRuns").document(run_id).set(
+        {
+            "runId": run_id,
+            "status": "running",
+            "triggeredBy": actor_id,
+            "triggeredByEmail": actor_email,
+            "createdAt": SERVER_TIMESTAMP,
+            "sourceCount": len(sources),
+        }
+    )
 
     results: list[SourceCollectResult] = []
 
@@ -222,13 +252,12 @@ def run_collection(
             result.found = len(items)
             for item in items:
                 try:
-                    created = _persist_item(item, source, triggered_by=admin.uid)
+                    created = _persist_item(item, source, triggered_by=actor_id)
                     if created:
                         result.created += 1
                     else:
                         result.duplicated += 1
                 except Exception as item_exc:
-                    # Falha em um item não aborta a fonte inteira
                     if result.error is None:
                         result.error = f"Falha parcial: {item_exc}"
             _update_source_stats(source["id"], result.created)
@@ -241,5 +270,10 @@ def run_collection(
 
         results.append(result)
 
-    _write_run_logs(run_id, admin, results)
+    _write_run_logs(
+        run_id,
+        triggered_by=actor_id,
+        triggered_by_email=actor_email,
+        results=results,
+    )
     return CollectRunResult(run_id=run_id, sources=results)

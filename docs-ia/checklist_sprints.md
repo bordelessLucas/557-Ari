@@ -88,20 +88,38 @@ Objetivo: transformar coletadas em artigos adaptados e revisar manualmente.
 - [x] Histórico de análises (`reviews` / `activityLogs`)
 - [x] **Sem** publicação automática nesta sprint
 
-**Nota:** provedor OpenAI (`gpt-4o-mini`), gatilho manual. Detalhes em `docs-ia/sprint4_ia.md`. Prompt neutro até haver perfil editorial (S8).
+**Nota:** provedor OpenAI (`gpt-4o-mini`) quando houver chave; **nesta etapa** o padrão sem chave é `passthrough` (texto original na fila de revisão). Detalhes em `docs-ia/sprint4_ia.md`. Prompt neutro até haver perfil editorial (S8).
 ---
+
+## Sprint 4.1 — Pipeline sem OpenAI (validação)
+
+- [x] Modo `passthrough` quando `OPENAI_API_KEY` estiver vazia (`AI_MODE=auto`)
+- [x] Fluxo Coletar → Preparar revisão → Aprovar/publicar no portal
+- [ ] Ligar OpenAI real na próxima sprint (só chave + reinício do backend)
 
 ## Sprint 5 — Publicação no portal
 
 Objetivo: enviar matérias aprovadas ao portal após integração definida.
 
-- [ ] Definir com o cliente o canal de publicação (API / CMS / WordPress / outro)
-- [ ] Enviar título, texto, resumo, imagem, categoria, data, status
-- [ ] Associação à categoria e imagem principal
-- [ ] Status `published` + registro em `publications`
-- [ ] Tratamento de falha de publicação / API indisponível
-- [ ] Organização cronológica no destino
+- [x] Canal nativo: publicar neste portal via Firestore (`articles` + `publications`)
+- [x] Enviar título, texto, resumo, imagem, categoria, data, status
+- [x] Associação à categoria e imagem principal
+- [x] Status `published` + registro em `publications` (`POST /review/{id}/publish`)
+- [ ] Tratamento de falha de publicação / API indisponível (retry dedicado)
+- [x] Organização cronológica no destino (Home + busca por `publishedAt`)
+- [x] Feed Home e rota `/noticias/:id` lendo artigos publicados
+- [x] Busca alinhada aos campos `adaptedTitle` / `adaptedSummary`
 
+---
+
+## Sprint 5.1 / API always-on (fundação)
+
+- [x] Dedupe com `contentHash` + doc ID determinístico
+- [x] Retries HTTP/OpenAI + sweeper de `processing` travado
+- [x] Rotas `/internal/collect` e `/internal/ai/process` (secret + 202)
+- [x] `/health` + `/ready`; Docker com `$PORT`
+- [ ] Cloud Scheduler ligado em produção
+- [ ] Admin collect/AI 100% assíncrono (hoje interno é async; admin ainda sync)
 ---
 
 ## Sprint 6 — Monitoramento e controle operacional

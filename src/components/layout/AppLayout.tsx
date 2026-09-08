@@ -1,5 +1,6 @@
 import { type User } from 'firebase/auth'
 import { useEffect, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { defaultPortalState } from '@/constants/states'
 import MainNav from '@/components/layout/MainNav'
 import StateSelector from '@/components/layout/StateSelector'
@@ -61,9 +62,9 @@ export default function AppLayout({ user, children }: AppLayoutProps) {
     <div className="min-h-screen bg-muted">
       <PageHeader className="border-b-0 bg-navy-700 py-4">
         <Container size="lg" className="flex items-center justify-between gap-4">
-          <a href="/" aria-label="Agência da Notícia">
+          <Link to="/" aria-label="Agência da Notícia">
             <Logo size="md" />
-          </a>
+          </Link>
 
           <div className="flex items-center gap-3 sm:gap-4">
             <StateSelector

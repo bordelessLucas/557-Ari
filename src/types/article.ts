@@ -1,4 +1,8 @@
-export type ArticleStatus = 'review' | 'approved' | 'rejected'
+export type ArticleStatus =
+  | 'review'
+  | 'approved'
+  | 'rejected'
+  | 'published'
 
 export interface Article {
   id: string
@@ -24,6 +28,8 @@ export interface Article {
   reviewedAt: Date | null
   reviewedBy: string | null
   rejectionReason: string | null
+  publishedAt: Date | null
+  publishedBy: string | null
 }
 
 export interface AiProcessResponse {
@@ -42,6 +48,7 @@ export interface AiProcessResponse {
 export interface ReviewActionResponse {
   articleId: string
   status: ArticleStatus
-  reviewId: string
+  reviewId?: string
+  publicationId?: string
   reason?: string | null
 }

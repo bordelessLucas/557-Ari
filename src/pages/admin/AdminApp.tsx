@@ -15,9 +15,10 @@ import type { UserProfile } from '@/types/user'
 interface AdminAppProps {
   user: User
   profile: UserProfile
+  onOpenPortal?: () => void
 }
 
-export default function AdminApp({ user, profile }: AdminAppProps) {
+export default function AdminApp({ user, profile, onOpenPortal }: AdminAppProps) {
   const [page, setPage] = useState<AdminPageId>('dashboard')
   const viewOnly = isViewOnlyAdmin(profile)
 
@@ -38,6 +39,7 @@ export default function AdminApp({ user, profile }: AdminAppProps) {
       profile={profile}
       activeNav={page}
       onNavigate={setPage}
+      onOpenPortal={onOpenPortal}
     >
       {content}
     </AdminLayout>

@@ -55,8 +55,9 @@ function buildPayload(data: SourceFormData) {
   return {
     name: data.name.trim(),
     siteUrl: data.siteUrl.trim(),
-    rssUrl: kind === 'api' ? null : normalizeUrl(data.rssUrl),
-    apiUrl: kind === 'api' ? normalizeUrl(data.apiUrl) : null,
+    // Strings vazias (não null) evitam rejeição nas security rules
+    rssUrl: kind === 'api' ? '' : (normalizeUrl(data.rssUrl) ?? ''),
+    apiUrl: kind === 'api' ? (normalizeUrl(data.apiUrl) ?? '') : '',
     kind,
     categoryIds: data.categoryIds,
     status: data.status,

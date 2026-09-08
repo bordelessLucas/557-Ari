@@ -1,9 +1,14 @@
 import { ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { mainNavItems } from '@/constants/navigation'
 import NavSearch from '@/components/layout/NavSearch'
 import { Container } from '@/components/ui'
 import { cn } from '@/lib/utils'
+
+function categoryPath(slug: string) {
+  return `/noticias/categoria/${slug}`
+}
 
 function CategoryMegaMenu({
   open,
@@ -55,13 +60,13 @@ function CategoryMegaMenu({
             >
               {column.map((category) => (
                 <li key={category.slug}>
-                  <a
-                    href={`/noticias/${category.slug}`}
+                  <Link
+                    to={categoryPath(category.slug)}
                     className="block text-[15px] font-medium text-neutral-800 transition-colors hover:text-red-700"
                     onClick={onClose}
                   >
                     {category.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -127,12 +132,15 @@ export default function MainNav() {
 
               return (
                 <li key={item.href}>
-                  <a
-                    href={item.href}
-                    className="flex h-11 items-center px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-red-900/60"
+                  <span
+                    title="Em breve"
+                    className="flex h-11 cursor-default items-center gap-2 px-4 text-sm font-semibold text-white/70"
                   >
                     {item.label}
-                  </a>
+                    <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/90">
+                      Em breve
+                    </span>
+                  </span>
                 </li>
               )
             })}
@@ -192,15 +200,17 @@ export default function MainNav() {
                     <div
                       className={cn(
                         'overflow-hidden transition-all duration-300 ease-out',
-                        mobileNewsOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
+                        mobileNewsOpen
+                          ? 'max-h-96 opacity-100'
+                          : 'max-h-0 opacity-0',
                       )}
                     >
                       <div className="mt-1 rounded-lg bg-[#e8e8e8] p-4">
                         <div className="grid gap-3">
                           {item.categories.flat().map((category) => (
-                            <a
+                            <Link
                               key={category.slug}
-                              href={`/noticias/${category.slug}`}
+                              to={categoryPath(category.slug)}
                               className="block text-sm font-medium text-neutral-800 hover:text-red-700"
                               onClick={() => {
                                 setMobileOpen(false)
@@ -208,20 +218,19 @@ export default function MainNav() {
                               }}
                             >
                               {category.label}
-                            </a>
+                            </Link>
                           ))}
                         </div>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <a
-                    href={item.href}
-                    className="block rounded-md px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-900/60"
-                    onClick={() => setMobileOpen(false)}
-                  >
+                  <span className="flex items-center justify-between rounded-md px-3 py-2.5 text-sm font-semibold text-white/70">
                     {item.label}
-                  </a>
+                    <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                      Em breve
+                    </span>
+                  </span>
                 )}
               </li>
             ))}

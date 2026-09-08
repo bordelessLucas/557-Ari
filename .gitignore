@@ -31,3 +31,11 @@ backend/serviceAccount.json
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+backend/.venv/
+backend/serviceAccount.json
+**/serviceAccount*.json

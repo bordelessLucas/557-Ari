@@ -82,11 +82,25 @@ def _article_from_url(url: str) -> CollectedItem | None:
 
 
 def collect_from_website(site_url: str, limit: int = 10) -> list[CollectedItem]:
+    from app.services.retries import with_backoff
+
     headers = {"User-Agent": USER_AGENT}
-    with httpx.Client(timeout=25.0, follow_redirects=True, headers=headers) as client:
-        response = client.get(site_url)
-        response.raise_for_status()
-        html = response.text
+
+    def _fetch_home() -> str:
+        with httpx.Client(
+            timeout=25.0, follow_redirects=True, headers=headers
+        ) as client:
+            response = client.get(site_url)
+            response.raise_for_status()
+            return response.text
+
+    html = with_backoff(
+        _fetch_home,
+        attempts=3,
+        base_delay=0.8,
+        retry_on=(httpx.HTTPError,),
+        label=f"website.home:{site_url}",
+    )
 
     article_urls = _extract_links(html, site_url, limit=limit * 2)
     if not article_urls:

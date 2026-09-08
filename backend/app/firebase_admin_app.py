@@ -29,15 +29,14 @@ def init_firebase() -> None:
         if path and Path(path).exists():
             cred = credentials.Certificate(path)
         else:
-            # Fallback: serviceAccount.json ao lado do backend/
             local = Path(__file__).resolve().parents[1] / "serviceAccount.json"
             if local.exists():
                 cred = credentials.Certificate(str(local))
 
     if cred is None:
         raise RuntimeError(
-            "Firebase Admin não configurado. Defina GOOGLE_APPLICATION_CREDENTIALS, "
-            "FIREBASE_SERVICE_ACCOUNT_JSON ou coloque backend/serviceAccount.json."
+            "Firebase Admin não configurado. Coloque backend/serviceAccount.json "
+            "ou defina GOOGLE_APPLICATION_CREDENTIALS / FIREBASE_SERVICE_ACCOUNT_JSON."
         )
 
     firebase_admin.initialize_app(
@@ -45,6 +44,19 @@ def init_firebase() -> None:
         {"projectId": settings.firebase_project_id},
     )
     _db = firestore.client()
+
+
+def firebase_configured() -> bool:
+    settings = get_settings()
+    if settings.firebase_service_account_json:
+        return True
+    path = settings.google_application_credentials or os.getenv(
+        "GOOGLE_APPLICATION_CREDENTIALS"
+    )
+    if path and Path(path).exists():
+        return True
+    local = Path(__file__).resolve().parents[1] / "serviceAccount.json"
+    return local.exists()
 
 
 def get_db():

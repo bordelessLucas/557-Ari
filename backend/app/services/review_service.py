@@ -21,6 +21,7 @@ def _get_article(article_id: str) -> tuple[Any, dict[str, Any]]:
 
 
 def approve_article(article_id: str, admin: AdminUser) -> dict[str, Any]:
+    """Aprova e publica no portal (feed do leitor) em um único passo."""
     ref, data = _get_article(article_id)
     if data.get("status") not in ("review", "rejected"):
         raise ValueError(
@@ -30,9 +31,11 @@ def approve_article(article_id: str, admin: AdminUser) -> dict[str, Any]:
     db = get_db()
     ref.update(
         {
-            "status": "approved",
+            "status": "published",
             "reviewedAt": SERVER_TIMESTAMP,
             "reviewedBy": admin.uid,
+            "publishedAt": SERVER_TIMESTAMP,
+            "publishedBy": admin.uid,
             "rejectionReason": None,
             "updatedAt": SERVER_TIMESTAMP,
         }
@@ -47,20 +50,54 @@ def approve_article(article_id: str, admin: AdminUser) -> dict[str, Any]:
             "createdAt": SERVER_TIMESTAMP,
         }
     )
+
+    publication_ref = db.collection("publications").document()
+    publication_ref.set(
+        {
+            "articleId": article_id,
+            "title": data.get("adaptedTitle") or "",
+            "summary": data.get("adaptedSummary") or "",
+            "body": data.get("adaptedBody") or "",
+            "imageUrl": data.get("imageUrl"),
+            "categoryIds": data.get("categoryIds") or [],
+            "sourceId": data.get("sourceId"),
+            "sourceName": data.get("sourceName"),
+            "originalUrl": data.get("originalUrl"),
+            "publishedBy": admin.uid,
+            "publishedAt": SERVER_TIMESTAMP,
+            "createdAt": SERVER_TIMESTAMP,
+            "status": "published",
+        }
+    )
+
+    collected_id = data.get("collectedNewsId")
+    if collected_id:
+        try:
+            db.collection("collectedNews").document(collected_id).update(
+                {
+                    "status": "published",
+                    "updatedAt": SERVER_TIMESTAMP,
+                }
+            )
+        except Exception:
+            pass
+
     db.collection("activityLogs").add(
         {
             "type": "review",
-            "action": "approved",
+            "action": "approved_and_published",
             "userId": admin.uid,
             "articleId": article_id,
-            "detail": f"Aprovado: {data.get('adaptedTitle', '')[:120]}",
+            "publicationId": publication_ref.id,
+            "detail": f"Aprovado e publicado: {data.get('adaptedTitle', '')[:120]}",
             "createdAt": SERVER_TIMESTAMP,
         }
     )
     return {
         "articleId": article_id,
-        "status": "approved",
+        "status": "published",
         "reviewId": review_ref.id,
+        "publicationId": publication_ref.id,
     }
 
 
@@ -112,4 +149,75 @@ def reject_article(
         "status": "rejected",
         "reviewId": review_ref.id,
         "reason": cleaned_reason,
+    }
+
+
+def publish_article(article_id: str, admin: AdminUser) -> dict[str, Any]:
+    """Move approved article to published and create publications doc."""
+    ref, data = _get_article(article_id)
+    current = data.get("status")
+    if current == "published":
+        raise ValueError("Artigo já está publicado.")
+    if current != "approved":
+        raise ValueError(
+            f"Só é possível publicar artigos aprovados (status={current})."
+        )
+
+    db = get_db()
+    ref.update(
+        {
+            "status": "published",
+            "publishedAt": SERVER_TIMESTAMP,
+            "publishedBy": admin.uid,
+            "updatedAt": SERVER_TIMESTAMP,
+        }
+    )
+
+    publication_ref = db.collection("publications").document()
+    publication_ref.set(
+        {
+            "articleId": article_id,
+            "title": data.get("adaptedTitle") or "",
+            "summary": data.get("adaptedSummary") or "",
+            "body": data.get("adaptedBody") or "",
+            "imageUrl": data.get("imageUrl"),
+            "categoryIds": data.get("categoryIds") or [],
+            "sourceId": data.get("sourceId"),
+            "sourceName": data.get("sourceName"),
+            "originalUrl": data.get("originalUrl"),
+            "publishedBy": admin.uid,
+            "publishedAt": SERVER_TIMESTAMP,
+            "createdAt": SERVER_TIMESTAMP,
+            "status": "published",
+        }
+    )
+
+    collected_id = data.get("collectedNewsId")
+    if collected_id:
+        try:
+            db.collection("collectedNews").document(collected_id).update(
+                {
+                    "status": "published",
+                    "updatedAt": SERVER_TIMESTAMP,
+                }
+            )
+        except Exception:
+            pass
+
+    db.collection("activityLogs").add(
+        {
+            "type": "publication",
+            "action": "published",
+            "userId": admin.uid,
+            "articleId": article_id,
+            "publicationId": publication_ref.id,
+            "detail": f"Publicado: {data.get('adaptedTitle', '')[:120]}",
+            "createdAt": SERVER_TIMESTAMP,
+        }
+    )
+
+    return {
+        "articleId": article_id,
+        "status": "published",
+        "publicationId": publication_ref.id,
     }

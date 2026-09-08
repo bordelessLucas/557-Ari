@@ -1,7 +1,11 @@
 import { Search, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Spinner } from '@/components/ui'
-import { searchContent } from '@/services/searchService'
+import {
+  SearchUnavailableError,
+  searchContent,
+} from '@/services/searchService'
 import type { SearchResult } from '@/types/search'
 import { cn } from '@/lib/utils'
 
@@ -18,8 +22,8 @@ function SearchResultItem({
   onSelect: () => void
 }) {
   return (
-    <a
-      href={result.href}
+    <Link
+      to={result.href}
       onClick={onSelect}
       className="block rounded-lg px-3 py-2.5 transition-colors hover:bg-muted"
     >
@@ -32,7 +36,7 @@ function SearchResultItem({
       <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-red-700">
         {result.type === 'article' ? result.category ?? 'Notícia' : 'Categoria'}
       </p>
-    </a>
+    </Link>
   )
 }
 
@@ -42,6 +46,7 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<SearchResult[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const closeTimeoutRef = useRef<number | null>(null)
@@ -55,6 +60,7 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
       setResults([])
       setHasSearched(false)
       setLoading(false)
+      setSearchError(null)
     }
   }
 
@@ -63,6 +69,7 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
     setResults([])
     setHasSearched(false)
     setLoading(false)
+    setSearchError(null)
     inputRef.current?.focus()
   }
 
@@ -127,11 +134,23 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
     }
 
     setLoading(true)
+    setSearchError(null)
     const timeoutId = window.setTimeout(async () => {
-      const response = await searchContent(trimmedQuery)
-      setResults(response.results)
-      setHasSearched(true)
-      setLoading(false)
+      try {
+        const response = await searchContent(trimmedQuery)
+        setResults(response.results)
+        setHasSearched(true)
+      } catch (err) {
+        setResults([])
+        setHasSearched(true)
+        setSearchError(
+          err instanceof SearchUnavailableError
+            ? err.message
+            : 'Busca indisponível no momento.',
+        )
+      } finally {
+        setLoading(false)
+      }
     }, 300)
 
     return () => window.clearTimeout(timeoutId)
@@ -232,18 +251,27 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
             </div>
           )}
 
-          {!loading && hasSearched && results.length === 0 && (
+          {!loading && searchError && (
+            <div className="px-3 py-8 text-center">
+              <p className="text-sm font-medium text-foreground">
+                Busca indisponível
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{searchError}</p>
+            </div>
+          )}
+
+          {!loading && !searchError && hasSearched && results.length === 0 && (
             <div className="px-3 py-8 text-center">
               <p className="text-sm font-medium text-foreground">
                 Nenhum resultado encontrado
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Tente outro termo. As notícias publicadas aparecerão aqui em breve.
+                Tente outro termo ou publique matérias no admin.
               </p>
             </div>
           )}
 
-          {!loading && results.length > 0 && (
+          {!loading && !searchError && results.length > 0 && (
             <ul className="space-y-1">
               {results.map((result) => (
                 <li key={result.id}>

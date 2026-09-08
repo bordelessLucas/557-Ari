@@ -105,10 +105,10 @@ export default function AdminNewsPage({ viewOnly }: Props) {
       const token = await user.getIdToken()
       const result = await processCollectedWithAi(token)
       if (result.processed === 0) {
-        setSuccess('Nenhuma notícia pendente de processamento por IA.')
+        setSuccess('Nenhuma notícia pendente de preparação.')
       } else {
         setSuccess(
-          `IA: ${result.succeeded} ok · ${result.failed} falha(s) · ${result.processed} processada(s). Veja em Aguardando revisão.`,
+          `Preparadas: ${result.succeeded} ok · ${result.failed} falha(s). Veja em Aguardando revisão.`,
         )
       }
       const failures = result.items.filter((item) => !item.success && item.error)
@@ -154,7 +154,7 @@ export default function AdminNewsPage({ viewOnly }: Props) {
                 disabled={!isAiApiConfigured()}
               >
                 <Sparkles className="size-4" />
-                Processar com IA
+                Preparar para revisão
               </Button>
               <Button
                 type="button"

@@ -3,7 +3,11 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth import AdminUser, require_admin_full
-from app.services.review_service import approve_article, reject_article
+from app.services.review_service import (
+    approve_article,
+    publish_article,
+    reject_article,
+)
 
 router = APIRouter(prefix="/review", tags=["review"])
 
@@ -52,4 +56,23 @@ async def reject(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Falha ao rejeitar: {exc}",
+        ) from exc
+
+
+@router.post("/{article_id}/publish")
+async def publish(
+    article_id: str,
+    admin: AdminUser = Depends(require_admin_full),
+):
+    try:
+        return publish_article(article_id, admin)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Falha ao publicar: {exc}",
         ) from exc

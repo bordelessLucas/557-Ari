@@ -18,6 +18,7 @@ def already_collected(
     original_url: str,
     external_id: str | None = None,
     source_id: str | None = None,
+    title: str | None = None,
 ) -> bool:
     db = get_db()
     url = normalize_url(original_url)
@@ -40,6 +41,17 @@ def already_collected(
             .stream()
         )
         if any(True for _ in ext_query):
+            return True
+
+    if title:
+        digest = content_hash(original_url, title)
+        hash_query = (
+            db.collection("collectedNews")
+            .where("contentHash", "==", digest)
+            .limit(1)
+            .stream()
+        )
+        if any(True for _ in hash_query):
             return True
 
     return False

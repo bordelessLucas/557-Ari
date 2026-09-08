@@ -15,6 +15,13 @@ interface SearchOptions {
   maxResults?: number
 }
 
+export class SearchUnavailableError extends Error {
+  constructor(message = 'Busca indisponível no momento.') {
+    super(message)
+    this.name = 'SearchUnavailableError'
+  }
+}
+
 function normalizeText(value: string): string {
   return value
     .normalize('NFD')
@@ -35,7 +42,7 @@ function searchCategories(term: string): SearchResult[] {
       type: 'category' as const,
       title: category.label,
       excerpt: 'Categoria de notícias',
-      href: `/noticias/${category.slug}`,
+      href: `/noticias/categoria/${category.slug}`,
     }))
 }
 
@@ -46,48 +53,46 @@ async function searchPublishedArticles(
   const normalizedTerm = normalizeText(term)
   if (!normalizedTerm) return []
 
-  try {
-    const articlesRef = collection(db, 'articles')
-    const articlesQuery = query(
-      articlesRef,
-      where('status', '==', 'published'),
-      limit(50),
+  const articlesRef = collection(db, 'articles')
+  const articlesQuery = query(
+    articlesRef,
+    where('status', '==', 'published'),
+    limit(50),
+  )
+
+  const snapshot = await getDocs(articlesQuery)
+  const matches: SearchResult[] = []
+
+  for (const docSnap of snapshot.docs) {
+    const data = docSnap.data()
+    const title = (data.adaptedTitle as string) ?? ''
+    const summary = (data.adaptedSummary as string) ?? ''
+    const categoryIds = Array.isArray(data.categoryIds)
+      ? (data.categoryIds as string[])
+      : []
+    const publishedAt = data.publishedAt
+      ? (data.publishedAt as { toDate: () => Date }).toDate()
+      : null
+
+    const searchable = normalizeText(
+      `${title} ${summary} ${categoryIds.join(' ')}`,
     )
+    if (!searchable.includes(normalizedTerm)) continue
 
-    const snapshot = await getDocs(articlesQuery)
+    matches.push({
+      id: docSnap.id,
+      type: 'article',
+      title,
+      excerpt: summary,
+      href: `/noticias/${docSnap.id}`,
+      category: categoryIds[0],
+      publishedAt,
+    })
 
-    const matches: SearchResult[] = []
-
-    for (const docSnap of snapshot.docs) {
-      const data = docSnap.data()
-      const title = (data.title as string) ?? ''
-      const summary = (data.summary as string) ?? ''
-      const slug = (data.slug as string) ?? docSnap.id
-      const category = data.category as string | undefined
-      const publishedAt = data.publishedAt
-        ? (data.publishedAt as { toDate: () => Date }).toDate()
-        : null
-
-      const searchable = normalizeText(`${title} ${summary} ${category ?? ''}`)
-      if (!searchable.includes(normalizedTerm)) continue
-
-      matches.push({
-        id: docSnap.id,
-        type: 'article',
-        title,
-        excerpt: summary,
-        href: `/noticias/${slug}`,
-        category,
-        publishedAt,
-      })
-
-      if (matches.length >= maxResults) break
-    }
-
-    return matches
-  } catch {
-    return []
+    if (matches.length >= maxResults) break
   }
+
+  return matches
 }
 
 export async function searchContent(
@@ -101,16 +106,22 @@ export async function searchContent(
     return { query: queryText, results: [], total: 0 }
   }
 
-  const [categories, articles] = await Promise.all([
-    Promise.resolve(searchCategories(queryText)),
-    searchPublishedArticles(queryText, maxResults),
-  ])
+  try {
+    const [categories, articles] = await Promise.all([
+      Promise.resolve(searchCategories(queryText)),
+      searchPublishedArticles(queryText, maxResults),
+    ])
 
-  const results = [...articles, ...categories].slice(0, maxResults)
+    const results = [...articles, ...categories].slice(0, maxResults)
 
-  return {
-    query: queryText,
-    results,
-    total: results.length,
+    return {
+      query: queryText,
+      results,
+      total: results.length,
+    }
+  } catch (err) {
+    throw new SearchUnavailableError(
+      err instanceof Error ? err.message : 'Busca indisponível no momento.',
+    )
   }
 }

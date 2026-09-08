@@ -1,11 +1,8 @@
 export type CollectedNewsStatus =
   | 'collected'
   | 'processing'
-  | 'review'
-  | 'approved'
-  | 'rejected'
-  | 'published'
   | 'error'
+  | 'published'
 
 export interface CollectedNews {
   id: string
@@ -22,6 +19,7 @@ export interface CollectedNews {
   contentHash: string
   status: CollectedNewsStatus
   rawExcerpt: string
+  processedByAi?: boolean
 }
 
 export interface SourceCollectResult {

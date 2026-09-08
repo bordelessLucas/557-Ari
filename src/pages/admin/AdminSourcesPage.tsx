@@ -17,7 +17,10 @@ import {
   Text,
 } from '@/components/ui'
 import { auth } from '@/lib/firebase'
-import { ensureDefaultCategories, listCategories } from '@/services/categoryService'
+import {
+  ensureDefaultCategories,
+  portalCategoriesFallback,
+} from '@/services/categoryService'
 import {
   collectOneSource,
   isCollectApiConfigured,
@@ -44,7 +47,9 @@ type StatusFilter = 'all' | SourceStatus
 
 export default function AdminSourcesPage({ viewOnly }: Props) {
   const [sources, setSources] = useState<NewsSource[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<Category[]>(() =>
+    portalCategoriesFallback(),
+  )
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -59,16 +64,20 @@ export default function AdminSourcesPage({ viewOnly }: Props) {
   async function loadData() {
     setLoading(true)
     setError(null)
+    // Nunca deixe o formulário sem chips de categoria (mesmo se Firestore falhar).
+    setCategories(portalCategoriesFallback())
+
     try {
-      let cats: Category[] = []
-      try {
-        cats = await ensureDefaultCategories()
-      } catch {
-        cats = await listCategories().catch(() => [])
+      const cats = await ensureDefaultCategories()
+      if (cats.length > 0) {
+        setCategories(cats.filter((item) => item.active))
       }
-      const list = await listSources()
-      setCategories(cats.filter((item) => item.active))
-      setSources(list)
+    } catch {
+      setCategories(portalCategoriesFallback())
+    }
+
+    try {
+      setSources(await listSources())
     } catch (err) {
       setError(
         err instanceof Error
@@ -107,6 +116,9 @@ export default function AdminSourcesPage({ viewOnly }: Props) {
   function openCreate() {
     setEditingId(null)
     setForm(emptySourceForm())
+    if (categories.length === 0) {
+      setCategories(portalCategoriesFallback())
+    }
     setFormOpen(true)
     setSuccess(null)
     setError(null)
@@ -115,6 +127,9 @@ export default function AdminSourcesPage({ viewOnly }: Props) {
   function openEdit(source: NewsSource) {
     setEditingId(source.id)
     setForm(sourceToForm(source))
+    if (categories.length === 0) {
+      setCategories(portalCategoriesFallback())
+    }
     setFormOpen(true)
     setSuccess(null)
     setError(null)
@@ -375,8 +390,8 @@ export default function AdminSourcesPage({ viewOnly }: Props) {
                   placeholder="https://.../feed"
                   hint={
                     form.kind === 'rss'
-                      ? 'Obrigatório para fontes do tipo RSS.'
-                      : 'Preencha se o portal oferecer feed.'
+                      ? 'Obrigatório. Ex.: https://g1.globo.com/rss/g1/ or feed do portal.'
+                      : 'Recomendado: com RSS a coleta fica bem mais estável que HTML.'
                   }
                 />
               )}
@@ -397,27 +412,36 @@ export default function AdminSourcesPage({ viewOnly }: Props) {
               <div className="space-y-2">
                 <Label>Categorias</Label>
                 <div className="flex flex-wrap gap-2 rounded-md border border-border bg-muted/30 p-3">
-                  {categories.map((category) => {
-                    const selected = form.categoryIds.includes(category.id)
-                    return (
-                      <button
-                        key={category.id}
-                        type="button"
-                        onClick={() => toggleCategory(category.id)}
-                        className={
-                          selected
-                            ? 'rounded-md bg-navy-700 px-2.5 py-1 text-xs font-medium text-white'
-                            : 'rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted'
-                        }
-                      >
-                        {category.name}
-                      </button>
-                    )
-                  })}
+                  {categories.length === 0 ? (
+                    <Text variant="small">
+                      Nenhuma categoria carregada. Recarregue a página ou abra
+                      Configurações.
+                    </Text>
+                  ) : (
+                    categories.map((category) => {
+                      const selected = form.categoryIds.includes(category.id)
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          onClick={() => toggleCategory(category.id)}
+                          className={
+                            selected
+                              ? 'rounded-md bg-navy-700 px-2.5 py-1 text-xs font-medium text-white'
+                              : 'rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted'
+                          }
+                        >
+                          {category.name}
+                        </button>
+                      )
+                    })
+                  )}
                 </div>
                 <Text variant="small">
-                  Categorias iniciais baseadas no portal atual; podem ser
-                  ajustadas depois.
+                  Clique para selecionar uma ou mais categorias da fonte.
+                  {form.categoryIds.length > 0
+                    ? ` (${form.categoryIds.length} selecionada(s))`
+                    : ''}
                 </Text>
               </div>
 

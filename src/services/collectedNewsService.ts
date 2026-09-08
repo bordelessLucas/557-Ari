@@ -35,6 +35,7 @@ function mapCollectedNews(
     contentHash: (data.contentHash as string) ?? '',
     status: (data.status as CollectedNewsStatus) ?? 'collected',
     rawExcerpt: (data.rawExcerpt as string) ?? '',
+    processedByAi: Boolean(data.processedByAi),
   }
 }
 

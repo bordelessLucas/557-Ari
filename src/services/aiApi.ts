@@ -112,3 +112,23 @@ export async function rejectArticle(
   if (!response.ok) throw new Error(await parseError(response))
   return (await response.json()) as ReviewActionResponse
 }
+
+export async function publishArticle(
+  articleId: string,
+  idToken: string,
+): Promise<ReviewActionResponse> {
+  if (!API_URL) {
+    throw new Error('API não configurada. Defina VITE_API_URL.')
+  }
+
+  const response = await fetch(
+    `${API_URL}/review/${encodeURIComponent(articleId)}/publish`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${idToken}` },
+    },
+  )
+
+  if (!response.ok) throw new Error(await parseError(response))
+  return (await response.json()) as ReviewActionResponse
+}

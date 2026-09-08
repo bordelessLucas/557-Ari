@@ -1,7 +1,7 @@
-# Backend — Projeto Ari (coleta + IA)
+# Backend — Projeto Ari (coleta + IA + publicação)
 
-API FastAPI: coleta de fontes (RSS/HTML) e processamento editorial OpenAI,
-com aprovação/rejeição na central de revisão.
+API FastAPI: coleta de fontes (RSS/HTML), processamento editorial OpenAI,
+revisão e publicação no portal.
 
 ## Setup
 
@@ -19,6 +19,7 @@ cp .env.example .env
 Configure:
 - `backend/serviceAccount.json` (Firebase Admin)
 - `OPENAI_API_KEY` no `.env`
+- `INTERNAL_API_SECRET` para rotas `/internal/*` (Scheduler)
 
 **Não versionar** secrets.
 
@@ -28,7 +29,8 @@ Configure:
 uvicorn app.main:app --reload --port 8000
 ```
 
-Health: `GET http://localhost:8000/health`
+- Health: `GET /health`
+- Ready: `GET /ready` (Firestore + flags de config)
 
 ## Endpoints (admin JWT)
 
@@ -36,19 +38,30 @@ Health: `GET http://localhost:8000/health`
 - `POST /collect` — coleta todas as fontes ativas
 - `POST /collect/{sourceId}` — coleta uma fonte
 
-### IA (Sprint 4)
+### IA
 - `POST /ai/process` — processa lote de notícias `collected`
 - `POST /ai/process/{collectedNewsId}` — um item
 - `POST /review/{articleId}/approve`
 - `POST /review/{articleId}/reject` — body opcional `{ "reason": "..." }`
+- `POST /review/{articleId}/publish` — só `approved` → `published` + `publications`
 
 Header: `Authorization: Bearer <Firebase ID token>`
 
-Env IA: `OPENAI_API_KEY`, `OPENAI_MODEL=gpt-4o-mini`
+## Endpoints internos (Scheduler)
 
-## Docker (Cloud Run futuro)
+Header: `X-Internal-Secret: <INTERNAL_API_SECRET>`
+
+- `POST /internal/collect` → `202` `{ runId, status: queued }`
+- `POST /internal/ai/process` → `202` `{ jobId, status: queued }`
+
+Body opcional collect: `{ "source_id": "..." }`  
+Body opcional AI: `{ "ids": [], "collected_news_id": null }`
+
+## Docker / Cloud Run
 
 ```bash
 docker build -t ari-api .
-docker run -p 8000:8000 --env-file .env ari-api
+docker run -p 8080:8080 -e PORT=8080 --env-file .env ari-api
 ```
+
+A imagem respeita a variável `PORT` (padrão Cloud Run).
