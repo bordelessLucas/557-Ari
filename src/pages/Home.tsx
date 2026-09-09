@@ -5,42 +5,38 @@ import NewsFeed from '@/components/portal/NewsFeed'
 import { Container } from '@/components/ui'
 import { listCategories } from '@/services/categoryService'
 import { listPortalArticles } from '@/services/articleService'
-import { getFirstName, getUserProfile } from '@/services/userService'
 import type { Article } from '@/types/article'
 
 interface HomeProps {
   user: User
 }
 
+const PAGE_SIZE = 24
+
 export default function Home({ user }: HomeProps) {
-  const [userName, setUserName] = useState(
-    getFirstName(user.displayName || user.email || 'Leitor'),
-  )
   const [articles, setArticles] = useState<Article[]>([])
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    getUserProfile(user.uid).then((profile) => {
-      if (profile?.name) {
-        setUserName(getFirstName(profile.name))
-      }
-    })
-  }, [user.uid])
+  const [limit, setLimit] = useState(PAGE_SIZE)
+  const [hasMore, setHasMore] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
-      setLoading(true)
+      const isFirstPage = limit === PAGE_SIZE
+      if (isFirstPage) setLoading(true)
+      else setLoadingMore(true)
       setError(null)
       try {
         const [list, categories] = await Promise.all([
-          listPortalArticles(24),
+          listPortalArticles(limit),
           listCategories().catch(() => []),
         ])
         if (cancelled) return
         setArticles(list)
+        setHasMore(list.length >= limit)
         const map: Record<string, string> = {}
         categories.forEach((cat) => {
           map[cat.id] = cat.name
@@ -52,29 +48,41 @@ export default function Home({ user }: HomeProps) {
           setError(
             err instanceof Error
               ? err.message
-              : 'Não foi possível carregar o feed.',
+              : 'Não foi possível carregar as notícias. Tente novamente em instantes.',
           )
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setLoadingMore(false)
+        }
       }
     }
     void load()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [limit])
+
+  function handleLoadMore() {
+    setLimit((current) => current + PAGE_SIZE)
+  }
 
   return (
-    <AppLayout user={user}>
+    <AppLayout user={user} documentTitle="Agência da Notícia — Início">
       <Container size="lg">
         <NewsFeed
-          title={`Olá, ${userName}`}
-          subtitle="Acompanhe as principais notícias publicadas no portal."
+          title="Destaques"
+          subtitle="As principais notícias publicadas no portal."
           articles={articles}
           categoryNames={categoryNames}
           loading={loading}
           error={error}
+          emptyTitle="Nenhuma matéria publicada ainda"
+          emptyDescription="Em breve a redação publica as primeiras notícias aqui."
+          hasMore={hasMore && !loading}
+          loadingMore={loadingMore}
+          onLoadMore={handleLoadMore}
         />
       </Container>
     </AppLayout>

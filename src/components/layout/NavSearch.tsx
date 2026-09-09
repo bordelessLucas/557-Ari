@@ -49,7 +49,6 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
   const [searchError, setSearchError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const closeTimeoutRef = useRef<number | null>(null)
 
   function updateOpen(nextOpen: boolean) {
     setOpen(nextOpen)
@@ -73,30 +72,11 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
     inputRef.current?.focus()
   }
 
-  function cancelScheduledClose() {
-    if (closeTimeoutRef.current !== null) {
-      window.clearTimeout(closeTimeoutRef.current)
-      closeTimeoutRef.current = null
-    }
-  }
-
-  function scheduleClose() {
-    cancelScheduledClose()
-    closeTimeoutRef.current = window.setTimeout(() => {
-      updateOpen(false)
-      closeTimeoutRef.current = null
-    }, 220)
-  }
-
   useEffect(() => {
     if (open) {
       inputRef.current?.focus()
     }
   }, [open])
-
-  useEffect(() => {
-    return () => cancelScheduledClose()
-  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -162,10 +142,6 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
     <div
       ref={containerRef}
       className={cn('relative flex items-center', className)}
-      onMouseEnter={cancelScheduledClose}
-      onMouseLeave={() => {
-        if (open) scheduleClose()
-      }}
     >
       <div
         className={cn(
@@ -237,7 +213,7 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
 
       <div
         className={cn(
-          'absolute right-0 top-full z-50 w-80 origin-top-right pt-2 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:w-96',
+          'absolute right-0 top-full z-50 w-[min(100vw-1.5rem,22rem)] origin-top-right pt-2 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:w-96',
           open && (query.trim() || hasSearched)
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
             : 'pointer-events-none -translate-y-1 scale-95 opacity-0',
@@ -266,7 +242,7 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
                 Nenhum resultado encontrado
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Tente outro termo ou publique matérias no admin.
+                Tente outro termo ou explore as categorias no menu Notícias.
               </p>
             </div>
           )}

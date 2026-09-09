@@ -46,6 +46,15 @@ function searchCategories(term: string): SearchResult[] {
     }))
 }
 
+function resolveCategoryLabel(categoryIds: string[]): string {
+  if (!categoryIds.length) return 'Notícia'
+  const idOrSlug = categoryIds[0]
+  const fromNav = newsCategories
+    .flat()
+    .find((item) => item.slug === idOrSlug || item.label === idOrSlug)
+  return fromNav?.label ?? idOrSlug
+}
+
 async function searchPublishedArticles(
   term: string,
   maxResults: number,
@@ -85,7 +94,7 @@ async function searchPublishedArticles(
       title,
       excerpt: summary,
       href: `/noticias/${docSnap.id}`,
-      category: categoryIds[0],
+      category: resolveCategoryLabel(categoryIds),
       publishedAt,
     })
 

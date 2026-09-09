@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw, Sparkles } from 'lucide-react'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import {
@@ -10,7 +10,12 @@ import {
   Text,
 } from '@/components/ui'
 import { auth } from '@/lib/firebase'
-import { isAiApiConfigured, processCollectedWithAi } from '@/services/aiApi'
+import { collectedNewsDisplayStatus } from '@/lib/statusLabels'
+import {
+  isAiApiConfigured,
+  processCollectedWithAi,
+  processOneCollectedWithAi,
+} from '@/services/aiApi'
 import {
   collectAllSources,
   isCollectApiConfigured,
@@ -21,19 +26,26 @@ import {
 } from '@/services/collectedNewsService'
 import { listCategories } from '@/services/categoryService'
 import type { CollectedNews } from '@/types/collectedNews'
+import type { AdminPageId } from '@/constants/adminNavigation'
+
+type NewsFilter = 'all' | 'pending_ai' | 'prepared' | 'published' | 'error'
 
 interface Props {
   viewOnly?: boolean
+  onNavigate?: (page: AdminPageId) => void
 }
 
-export default function AdminNewsPage({ viewOnly }: Props) {
+export default function AdminNewsPage({ viewOnly, onNavigate }: Props) {
   const [items, setItems] = useState<CollectedNews[]>([])
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
+  const [filter, setFilter] = useState<NewsFilter>('all')
   const [loading, setLoading] = useState(true)
   const [collecting, setCollecting] = useState(false)
   const [processingAi, setProcessingAi] = useState(false)
+  const [actingId, setActingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [showReviewCta, setShowReviewCta] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -64,11 +76,26 @@ export default function AdminNewsPage({ viewOnly }: Props) {
     void load()
   }, [load])
 
+  const filtered = useMemo(() => {
+    return items.filter((news) => {
+      const display = collectedNewsDisplayStatus(news)
+      if (filter === 'all') return true
+      if (filter === 'pending_ai') {
+        return news.status === 'collected' && !news.processedByAi
+      }
+      if (filter === 'prepared') return display === 'prepared'
+      if (filter === 'published') return news.status === 'published'
+      if (filter === 'error') return news.status === 'error'
+      return true
+    })
+  }, [items, filter])
+
   async function handleCollect() {
     if (viewOnly) return
     setCollecting(true)
     setError(null)
     setSuccess(null)
+    setShowReviewCta(false)
 
     try {
       const user = auth.currentUser
@@ -99,6 +126,7 @@ export default function AdminNewsPage({ viewOnly }: Props) {
     setProcessingAi(true)
     setError(null)
     setSuccess(null)
+    setShowReviewCta(false)
     try {
       const user = auth.currentUser
       if (!user) throw new Error('Sessão expirada. Faça login novamente.')
@@ -108,8 +136,9 @@ export default function AdminNewsPage({ viewOnly }: Props) {
         setSuccess('Nenhuma notícia pendente de preparação.')
       } else {
         setSuccess(
-          `Preparadas: ${result.succeeded} ok · ${result.failed} falha(s). Veja em Aguardando revisão.`,
+          `Preparadas: ${result.succeeded} ok · ${result.failed} falha(s).`,
         )
+        if (result.succeeded > 0) setShowReviewCta(true)
       }
       const failures = result.items.filter((item) => !item.success && item.error)
       if (failures.length > 0) {
@@ -122,6 +151,32 @@ export default function AdminNewsPage({ viewOnly }: Props) {
       )
     } finally {
       setProcessingAi(false)
+    }
+  }
+
+  async function handleProcessOne(news: CollectedNews) {
+    if (viewOnly) return
+    setActingId(news.id)
+    setError(null)
+    setSuccess(null)
+    setShowReviewCta(false)
+    try {
+      const user = auth.currentUser
+      if (!user) throw new Error('Sessão expirada. Faça login novamente.')
+      const token = await user.getIdToken()
+      const result = await processOneCollectedWithAi(news.id, token)
+      if (result.succeeded > 0) {
+        setSuccess(`Preparada: ${news.title}`)
+        setShowReviewCta(true)
+      } else {
+        const fail = result.items.find((item) => item.error)
+        throw new Error(fail?.error ?? 'Falha ao preparar item.')
+      }
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao preparar item.')
+    } finally {
+      setActingId(null)
     }
   }
 
@@ -144,6 +199,17 @@ export default function AdminNewsPage({ viewOnly }: Props) {
         <div className="flex flex-wrap items-center gap-2">
           {viewOnly && <Badge variant="warning">Somente leitura</Badge>}
           {!apiReady && <Badge variant="warning">API não configurada</Badge>}
+          <select
+            className="flex h-10 rounded-md border border-input bg-background px-3 text-sm"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as NewsFilter)}
+          >
+            <option value="all">Todas</option>
+            <option value="pending_ai">Pendentes de preparação</option>
+            <option value="prepared">Preparadas</option>
+            <option value="published">Publicadas</option>
+            <option value="error">Com erro</option>
+          </select>
           {!viewOnly && (
             <>
               <Button
@@ -177,16 +243,29 @@ export default function AdminNewsPage({ viewOnly }: Props) {
       )}
       {success && (
         <Alert variant="success">
-          <p className="text-sm">{success}</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm">{success}</p>
+            {showReviewCta && onNavigate && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigate('review')}
+              >
+                Ir para revisão
+              </Button>
+            )}
+          </div>
         </Alert>
       )}
 
       {!apiReady && !viewOnly && (
         <Alert variant="info">
           <p className="text-sm">
-            Defina <code className="text-xs">VITE_API_URL</code>, suba o backend
-            e configure <code className="text-xs">OPENAI_API_KEY</code> para
-            coleta e IA.
+            Defina <code className="text-xs">VITE_API_URL</code> (ex.:{' '}
+            <code className="text-xs">http://localhost:8000</code>) e suba o
+            backend com uvicorn para coletar e preparar notícias. OpenAI é
+            opcional (sem chave = modo passthrough).
           </p>
         </Alert>
       )}
@@ -195,68 +274,88 @@ export default function AdminNewsPage({ viewOnly }: Props) {
         <div className="flex justify-center py-16">
           <Spinner size="lg" />
         </div>
-      ) : items.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border bg-background px-4 py-12 text-center">
           <Text variant="muted">
-            Nenhuma notícia coletada ainda.
-            {!viewOnly &&
-              ' Cadastre fontes ativas e use “Coletar agora”.'}
+            {items.length === 0
+              ? `Nenhuma notícia coletada ainda.${!viewOnly ? ' Cadastre fontes ativas e use “Coletar agora”.' : ''}`
+              : 'Nenhuma notícia neste filtro.'}
           </Text>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-background">
           <div className="hidden grid-cols-12 gap-3 border-b border-border bg-muted/50 px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid">
-            <div className="col-span-5">Título</div>
+            <div className="col-span-4">Título</div>
             <div className="col-span-2">Fonte</div>
             <div className="col-span-2">Categoria</div>
             <div className="col-span-2">Coletada em</div>
-            <div className="col-span-1">Status</div>
+            <div className="col-span-2">Status</div>
           </div>
 
-          {items.map((news) => (
-            <div
-              key={news.id}
-              className="grid gap-2 border-b border-border px-4 py-4 last:border-0 md:grid-cols-12 md:items-center md:gap-3"
-            >
-              <div className="md:col-span-5">
-                <p className="text-sm font-semibold text-foreground">
-                  {news.title}
-                </p>
-                <Text variant="small" className="mt-1 line-clamp-2">
-                  {news.summary}
-                </Text>
-                {news.originalUrl && (
-                  <a
-                    href={news.originalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 inline-block text-xs text-navy-600 hover:underline"
-                  >
-                    Ver original
-                  </a>
-                )}
+          {filtered.map((news) => {
+            const display = collectedNewsDisplayStatus(news)
+            const canPrepare =
+              !viewOnly &&
+              news.status === 'collected' &&
+              !news.processedByAi &&
+              isAiApiConfigured()
+
+            return (
+              <div
+                key={news.id}
+                className="grid gap-2 border-b border-border px-4 py-4 last:border-0 md:grid-cols-12 md:items-center md:gap-3"
+              >
+                <div className="md:col-span-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    {news.title}
+                  </p>
+                  <Text variant="small" className="mt-1 line-clamp-2">
+                    {news.summary}
+                  </Text>
+                  {news.originalUrl && (
+                    <a
+                      href={news.originalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-xs text-navy-600 hover:underline"
+                    >
+                      Ver original
+                    </a>
+                  )}
+                </div>
+                <div className="md:col-span-2">
+                  <Text variant="small" className="md:hidden">
+                    Fonte
+                  </Text>
+                  <p className="text-sm text-foreground">{news.sourceName}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <Badge variant="outline">
+                    {categoryLabel(news.categoryIds)}
+                  </Badge>
+                </div>
+                <div className="md:col-span-2">
+                  <p className="text-sm text-foreground">
+                    {formatCollectedDate(news.collectedAt)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+                  <StatusBadge status={display} />
+                  {canPrepare && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      loading={actingId === news.id}
+                      onClick={() => void handleProcessOne(news)}
+                    >
+                      Preparar
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div className="md:col-span-2">
-                <Text variant="small" className="md:hidden">
-                  Fonte
-                </Text>
-                <p className="text-sm text-foreground">{news.sourceName}</p>
-              </div>
-              <div className="md:col-span-2">
-                <Badge variant="outline">
-                  {categoryLabel(news.categoryIds)}
-                </Badge>
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-sm text-foreground">
-                  {formatCollectedDate(news.collectedAt)}
-                </p>
-              </div>
-              <div className="md:col-span-1">
-                <StatusBadge status={news.status} />
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

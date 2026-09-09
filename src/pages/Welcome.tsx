@@ -114,8 +114,8 @@ export default function Welcome({
                 Bem-vindo
               </CardTitle>
               <CardDescription className="max-w-sm text-[15px] leading-relaxed">
-                Faça login na sua conta para ter acesso às notícias do portal.
-                Ainda não tem cadastro? Crie sua conta em poucos segundos.
+                O portal é exclusivo para leitores com conta. Entre ou cadastre-se
+                para acessar as notícias — não há navegação anônima.
               </CardDescription>
             </CardHeader>
 

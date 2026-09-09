@@ -211,13 +211,15 @@ export function getFirstName(name: string): string {
   return trimmed.split(/\s+/)[0] ?? trimmed
 }
 
+/** Somente o admin principal convida novos administradores. */
 export function canManageAdmins(profile: UserProfile | null): boolean {
   if (!profile || profile.role !== 'admin') return false
-  return Boolean(profile.isPrincipal || profile.adminPermission === 'full')
+  return Boolean(profile.isPrincipal)
 }
 
 export function isViewOnlyAdmin(profile: UserProfile | null): boolean {
   if (!profile || profile.role !== 'admin') return false
   if (profile.isPrincipal) return false
-  return profile.adminPermission === 'view'
+  // Sem permissão explícita → somente leitura (conservador)
+  return profile.adminPermission !== 'full'
 }

@@ -1,7 +1,6 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
   Alert,
-  Badge,
   Button,
   Card,
   CardContent,
@@ -11,10 +10,10 @@ import {
   Heading,
   Input,
   Label,
+  Spinner,
   Text,
 } from '@/components/ui'
 import { StatusBadge } from '@/components/admin/StatusBadge'
-import { mockAdmins } from '@/data/adminMock'
 import {
   canManageAdmins,
   createAdminAccount,
@@ -22,13 +21,23 @@ import {
 } from '@/services/userService'
 import type { AdminPermission, UserProfile } from '@/types/user'
 
+interface AdminListItem {
+  id: string
+  name: string
+  email: string
+  adminPermission: AdminPermission
+  isPrincipal: boolean
+}
+
 interface Props {
   profile: UserProfile
 }
 
 export default function AdminUsersPage({ profile }: Props) {
   const canManage = canManageAdmins(profile)
-  const [admins, setAdmins] = useState(mockAdmins)
+  const [admins, setAdmins] = useState<AdminListItem[]>([])
+  const [listLoading, setListLoading] = useState(true)
+  const [listError, setListError] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -37,25 +46,35 @@ export default function AdminUsersPage({ profile }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  useEffect(() => {
-    listAdminProfiles()
-      .then((remote) => {
-        if (remote.length === 0) return
-        setAdmins(
-          remote.map((item, index) => ({
-            id: item.email || `admin-${index}`,
-            name: item.name || 'Administrador',
-            email: item.email,
-            adminPermission: item.adminPermission ?? 'view',
-            isPrincipal: Boolean(item.isPrincipal),
-            createdAt: item.createdAt?.toISOString() ?? new Date().toISOString(),
-          })),
-        )
-      })
-      .catch(() => {
-        // Mantém mock local se a listagem falhar (ex.: índice/rules)
-      })
+  const loadAdmins = useCallback(async () => {
+    setListLoading(true)
+    setListError(null)
+    try {
+      const remote = await listAdminProfiles()
+      setAdmins(
+        remote.map((item, index) => ({
+          id: item.email || `admin-${index}`,
+          name: item.name || 'Administrador',
+          email: item.email,
+          adminPermission: item.adminPermission ?? 'view',
+          isPrincipal: Boolean(item.isPrincipal),
+        })),
+      )
+    } catch (err) {
+      setAdmins([])
+      setListError(
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível carregar os administradores.',
+      )
+    } finally {
+      setListLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    void loadAdmins()
+  }, [loadAdmins])
 
   async function handleCreate(event: FormEvent) {
     event.preventDefault()
@@ -73,23 +92,12 @@ export default function AdminUsersPage({ profile }: Props) {
         adminPermission: permission,
       })
 
-      setAdmins((current) => [
-        {
-          id: email,
-          name,
-          email,
-          adminPermission: permission,
-          isPrincipal: false,
-          createdAt: new Date().toISOString(),
-        },
-        ...current,
-      ])
-
       setName('')
       setEmail('')
       setPassword('')
       setPermission('view')
       setSuccess('Administrador cadastrado com sucesso.')
+      await loadAdmins()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao cadastrar admin.')
     } finally {
@@ -103,15 +111,15 @@ export default function AdminUsersPage({ profile }: Props) {
         <div>
           <Heading level={2}>Administradores</Heading>
           <Text variant="muted" className="mt-1">
-            Admin principal com edição total pode cadastrar novos acessos.
+            Somente o administrador principal pode cadastrar novos acessos.
           </Text>
         </div>
-        <Badge variant="muted">Demo + cadastro real</Badge>
       </div>
 
       {!canManage && (
         <Alert variant="info">
-          Seu perfil não permite cadastrar ou alterar administradores.
+          Seu perfil não permite cadastrar ou alterar administradores. Peça ao
+          admin principal se precisar de um novo acesso.
         </Alert>
       )}
 
@@ -187,25 +195,48 @@ export default function AdminUsersPage({ profile }: Props) {
         <CardHeader>
           <CardTitle>Equipe administrativa</CardTitle>
           <CardDescription>
-            Lista de administradores do sistema.
+            Lista de administradores do sistema (Firestore).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {admins.map((admin) => (
-            <div
-              key={admin.id}
-              className="flex flex-col gap-2 rounded-lg border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {admin.name}
-                  {admin.isPrincipal ? ' · Principal' : ''}
-                </p>
-                <Text variant="small">{admin.email}</Text>
-              </div>
-              <StatusBadge status={admin.adminPermission} />
+          {listLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner />
             </div>
-          ))}
+          ) : listError ? (
+            <Alert variant="destructive">
+              <p className="text-sm">{listError}</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                onClick={() => void loadAdmins()}
+              >
+                Tentar novamente
+              </Button>
+            </Alert>
+          ) : admins.length === 0 ? (
+            <Text variant="muted">Nenhum administrador encontrado.</Text>
+          ) : (
+            admins.map((admin) => (
+              <div
+                key={admin.id}
+                className="flex flex-col gap-2 rounded-lg border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {admin.name}
+                    {admin.isPrincipal ? ' · Principal' : ''}
+                  </p>
+                  <Text variant="small">{admin.email}</Text>
+                </div>
+                <StatusBadge
+                  status={admin.isPrincipal ? 'full' : admin.adminPermission}
+                />
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

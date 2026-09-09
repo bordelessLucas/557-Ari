@@ -286,6 +286,9 @@ export default function AdminSourcesPage({ viewOnly }: Props) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {viewOnly && <Badge variant="warning">Somente leitura</Badge>}
+          {!isCollectApiConfigured() && (
+            <Badge variant="warning">API não configurada</Badge>
+          )}
           {!viewOnly && (
             <Button type="button" onClick={openCreate}>
               <Plus className="size-4" />
@@ -306,6 +309,16 @@ export default function AdminSourcesPage({ viewOnly }: Props) {
         </Alert>
       )}
 
+      {!isCollectApiConfigured() && !viewOnly && (
+        <Alert variant="info">
+          <p className="text-sm">
+            Para usar <strong>Coletar</strong>, defina{' '}
+            <code className="text-xs">VITE_API_URL</code> e suba o backend em{' '}
+            <code className="text-xs">http://localhost:8000</code>.
+          </p>
+        </Alert>
+      )}
+
       {formOpen && !viewOnly && (
         <Card>
           <CardHeader>
@@ -313,8 +326,8 @@ export default function AdminSourcesPage({ viewOnly }: Props) {
               {editingId ? 'Editar fonte' : 'Cadastrar fonte'}
             </CardTitle>
             <CardDescription>
-              Suporta RSS, site público ou API — a coleta usará o tipo adequado
-              na Sprint 3.
+              Cadastre feeds RSS ou sites públicos. A coleta manual usa o tipo
+              configurado (API específica ainda não coletada automaticamente).
             </CardDescription>
           </CardHeader>
           <CardContent>

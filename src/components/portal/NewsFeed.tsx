@@ -2,17 +2,13 @@ import { Link } from 'react-router-dom'
 import {
   Alert,
   Badge,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Heading,
   Spinner,
   Text,
 } from '@/components/ui'
 import { formatArticleDate } from '@/services/articleService'
 import type { Article } from '@/types/article'
+import { cn } from '@/lib/utils'
 
 interface NewsFeedProps {
   title: string
@@ -23,6 +19,30 @@ interface NewsFeedProps {
   error: string | null
   emptyTitle?: string
   emptyDescription?: string
+  /** Se informado, mostra “Carregar mais” quando há mais itens potenciais */
+  onLoadMore?: () => void
+  loadingMore?: boolean
+  hasMore?: boolean
+}
+
+function categoryLabel(
+  ids: string[],
+  categoryNames: Record<string, string>,
+): string {
+  if (!ids.length) return 'Notícia'
+  return categoryNames[ids[0]] ?? ids[0]
+}
+
+function ImagePlaceholder({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'bg-linear-to-br from-navy-700 to-red-800',
+        className,
+      )}
+      aria-hidden
+    />
+  )
 }
 
 export default function NewsFeed({
@@ -33,27 +53,27 @@ export default function NewsFeed({
   loading,
   error,
   emptyTitle = 'Nenhuma matéria publicada ainda',
-  emptyDescription = 'Assim que a redação publicar, o feed aparece aqui.',
+  emptyDescription = 'Assim que a redação publicar, as notícias aparecem aqui.',
+  onLoadMore,
+  loadingMore,
+  hasMore,
 }: NewsFeedProps) {
-  function categoryLabel(ids: string[]): string {
-    if (!ids.length) return 'Notícia'
-    return categoryNames[ids[0]] ?? ids[0]
-  }
-
   const featured = articles[0]
   const side = articles.slice(1, 4)
   const rest = articles.slice(4)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Heading level={2}>{title}</Heading>
+    <div className="space-y-8">
+      <header className="space-y-1">
+        <Heading level={2} className="font-semibold tracking-tight">
+          {title}
+        </Heading>
         {subtitle && (
-          <Text variant="muted" className="mt-1">
+          <Text variant="muted" className="max-w-2xl">
             {subtitle}
           </Text>
         )}
-      </div>
+      </header>
 
       {error && (
         <Alert variant="destructive">
@@ -66,114 +86,137 @@ export default function NewsFeed({
           <Spinner size="lg" />
         </div>
       ) : !featured ? (
-        <Card>
-          <CardContent className="space-y-2 py-12 text-center">
-            <Heading level={3}>{emptyTitle}</Heading>
-            <Text variant="muted">{emptyDescription}</Text>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-dashed border-border bg-background px-6 py-14 text-center">
+          <Heading level={3}>{emptyTitle}</Heading>
+          <Text variant="muted" className="mx-auto mt-2 max-w-md">
+            {emptyDescription}
+          </Text>
+        </div>
       ) : (
         <>
-          <div className="grid gap-6 lg:grid-cols-12">
+          <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
             <Link
               to={`/noticias/${featured.id}`}
-              className="block lg:col-span-7"
+              className="group block lg:col-span-7"
             >
-              <Card className="overflow-hidden transition-shadow hover:shadow-md">
+              <article className="overflow-hidden">
                 {featured.imageUrl ? (
                   <img
                     src={featured.imageUrl}
-                    alt=""
-                    className="aspect-16/10 w-full object-cover"
+                    alt={featured.adaptedTitle}
+                    className="aspect-16/10 w-full object-cover transition-transform duration-300 group-hover:scale-[1.01]"
+                    loading="eager"
                   />
                 ) : (
-                  <div className="aspect-16/10 bg-linear-to-br from-navy-700 to-red-800" />
+                  <ImagePlaceholder className="aspect-16/10 w-full" />
                 )}
-                <CardHeader>
+                <div className="mt-4 space-y-2">
                   <Badge variant="default">
-                    {categoryLabel(featured.categoryIds)}
+                    {categoryLabel(featured.categoryIds, categoryNames)}
                   </Badge>
-                  <CardTitle className="mt-2 text-xl">
+                  <h3 className="text-2xl font-semibold leading-tight tracking-tight text-foreground transition-colors group-hover:text-navy-700 sm:text-3xl">
                     {featured.adaptedTitle}
-                  </CardTitle>
-                  <CardDescription>{featured.adaptedSummary}</CardDescription>
-                  <Text variant="small" className="mt-2">
+                  </h3>
+                  <p className="text-base leading-relaxed text-muted-foreground">
+                    {featured.adaptedSummary}
+                  </p>
+                  <Text variant="small">
                     {formatArticleDate(featured.publishedAt)}
                   </Text>
-                </CardHeader>
-              </Card>
+                </div>
+              </article>
             </Link>
 
-            <div className="flex flex-col gap-4 lg:col-span-5">
-              {side.map((item) => (
-                <Link key={item.id} to={`/noticias/${item.id}`}>
-                  <Card className="flex gap-4 p-4 transition-shadow hover:shadow-md">
+            {side.length > 0 && (
+              <div className="flex flex-col divide-y divide-border lg:col-span-5">
+                {side.map((item) => (
+                  <Link
+                    key={item.id}
+                    to={`/noticias/${item.id}`}
+                    className="group flex gap-4 py-4 first:pt-0 last:pb-0"
+                  >
                     {item.imageUrl ? (
                       <img
                         src={item.imageUrl}
-                        alt=""
-                        className="size-20 shrink-0 rounded-lg object-cover"
+                        alt={item.adaptedTitle}
+                        className="size-20 shrink-0 object-cover sm:size-24"
+                        loading="lazy"
                       />
                     ) : (
-                      <div className="size-20 shrink-0 rounded-lg bg-muted" />
+                      <ImagePlaceholder className="size-20 shrink-0 sm:size-24" />
                     )}
-                    <div className="min-w-0 flex-1">
-                      <Badge variant="default" className="mb-2">
-                        {categoryLabel(item.categoryIds)}
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Badge variant="default">
+                        {categoryLabel(item.categoryIds, categoryNames)}
                       </Badge>
-                      <p className="text-sm font-semibold leading-snug text-foreground">
+                      <p className="text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-navy-700 sm:text-base">
                         {item.adaptedTitle}
                       </p>
-                      <Text variant="small" className="mt-1 line-clamp-2">
+                      <Text variant="small" className="line-clamp-2">
                         {item.adaptedSummary}
                       </Text>
                     </div>
-                  </Card>
-                </Link>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Últimas notícias</CardTitle>
-              <CardDescription>
-                {rest.length
-                  ? 'Mais matérias publicadas recentemente.'
-                  : 'Confira também o destaque acima.'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {(rest.length ? rest : articles.slice(0, 4)).map((item) => (
-                <Link
-                  key={item.id}
-                  to={`/noticias/${item.id}`}
-                  className="flex items-center gap-4 border-b border-border pb-4 last:border-0 last:pb-0"
-                >
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt=""
-                      className="h-16 w-24 shrink-0 rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="h-16 w-24 shrink-0 rounded-md bg-muted" />
-                  )}
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <Badge variant="muted">
-                      {categoryLabel(item.categoryIds)}
-                    </Badge>
-                    <p className="font-semibold text-foreground">
-                      {item.adaptedTitle}
-                    </p>
-                    <Text variant="small" className="line-clamp-2">
-                      {item.adaptedSummary}
-                    </Text>
-                  </div>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
+          {rest.length > 0 && (
+            <section className="space-y-4 border-t border-border pt-8">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">
+                  Mais notícias
+                </h3>
+                <Text variant="small">Outras matérias publicadas recentemente.</Text>
+              </div>
+              <ul className="divide-y divide-border">
+                {rest.map((item) => (
+                  <li key={item.id}>
+                    <Link
+                      to={`/noticias/${item.id}`}
+                      className="group flex items-center gap-4 py-4"
+                    >
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.adaptedTitle}
+                          className="h-16 w-24 shrink-0 object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <ImagePlaceholder className="h-16 w-24 shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <Badge variant="muted">
+                          {categoryLabel(item.categoryIds, categoryNames)}
+                        </Badge>
+                        <p className="font-semibold text-foreground transition-colors group-hover:text-navy-700">
+                          {item.adaptedTitle}
+                        </p>
+                        <Text variant="small" className="line-clamp-2">
+                          {item.adaptedSummary}
+                        </Text>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {hasMore && onLoadMore && (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                className="rounded-lg border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+              >
+                {loadingMore ? 'Carregando…' : 'Carregar mais'}
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

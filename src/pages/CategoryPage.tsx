@@ -5,9 +5,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import NewsFeed from '@/components/portal/NewsFeed'
 import { Container, Text } from '@/components/ui'
 import { newsCategories } from '@/constants/navigation'
-import {
-  listPortalArticlesByCategory,
-} from '@/services/articleService'
+import { listPortalArticlesByCategory } from '@/services/articleService'
 import { listCategories } from '@/services/categoryService'
 import type { Article } from '@/types/article'
 
@@ -57,7 +55,7 @@ export default function CategoryPage({ user }: CategoryPageProps) {
           setError(
             err instanceof Error
               ? err.message
-              : 'Não foi possível carregar esta categoria.',
+              : 'Não foi possível carregar esta categoria. Tente novamente.',
           )
         }
       } finally {
@@ -71,7 +69,10 @@ export default function CategoryPage({ user }: CategoryPageProps) {
   }, [categorySlug])
 
   return (
-    <AppLayout user={user}>
+    <AppLayout
+      user={user}
+      documentTitle={`${label} — Agência da Notícia`}
+    >
       <Container size="lg" className="space-y-4">
         <Text variant="small">
           <Link to="/" className="text-navy-600 hover:underline">
@@ -83,13 +84,13 @@ export default function CategoryPage({ user }: CategoryPageProps) {
 
         <NewsFeed
           title={label}
-          subtitle={`Matérias publicadas na categoria ${label}.`}
+          subtitle={`Notícias da categoria ${label}.`}
           articles={articles}
           categoryNames={categoryNames}
           loading={loading}
           error={error}
           emptyTitle={`Nenhuma matéria em ${label}`}
-          emptyDescription="Publique matérias desta categoria no admin para preenchê-la."
+          emptyDescription="Ainda não há publicações nesta categoria. Volte ao início ou escolha outra seção no menu."
         />
       </Container>
     </AppLayout>

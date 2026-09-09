@@ -108,7 +108,7 @@ export default function AdminSettingsPage({ profile }: Props) {
                 <li>
                   Modo editorial: <strong>{checks.ai_mode ?? '—'}</strong>
                   {checks.ai_mode === 'passthrough'
-                    ? ' (texto original — OpenAI na próxima sprint)'
+                    ? ' (texto original na revisão — configure OPENAI_API_KEY para adaptação)'
                     : ''}
                 </li>
                 <li>
@@ -136,8 +136,9 @@ export default function AdminSettingsPage({ profile }: Props) {
                       </code>
                     </li>
                     <li>
-                      OpenAI fica para a próxima sprint — sem chave o sistema
-                      usa modo passthrough (conteúdo original na revisão).
+                      Sem <code className="rounded bg-muted px-1">OPENAI_API_KEY</code>{' '}
+                      o sistema usa modo passthrough (conteúdo original na
+                      revisão). Com a chave, a adaptação editorial é automática.
                     </li>
                   </ol>
                 </Alert>

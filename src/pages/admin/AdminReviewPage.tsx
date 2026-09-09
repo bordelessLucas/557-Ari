@@ -18,7 +18,6 @@ import { auth } from '@/lib/firebase'
 import {
   approveArticle,
   isAiApiConfigured,
-  publishArticle,
   rejectArticle,
 } from '@/services/aiApi'
 import {
@@ -30,11 +29,13 @@ import type { Article, ArticleStatus } from '@/types/article'
 
 interface Props {
   viewOnly?: boolean
+  onOpenPortal?: (path?: string) => void
 }
 
-type FilterStatus = ArticleStatus | 'all'
+/** Filtros alinhados ao backend (approve publica direto; sem etapa approved). */
+type FilterStatus = 'review' | 'published' | 'rejected' | 'all'
 
-export default function AdminReviewPage({ viewOnly }: Props) {
+export default function AdminReviewPage({ viewOnly, onOpenPortal }: Props) {
   const [filter, setFilter] = useState<FilterStatus>('review')
   const [articles, setArticles] = useState<Article[]>([])
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
@@ -49,7 +50,7 @@ export default function AdminReviewPage({ viewOnly }: Props) {
     setError(null)
     try {
       const [list, categories] = await Promise.all([
-        listArticlesByStatus(filter),
+        listArticlesByStatus(filter as ArticleStatus | 'all'),
         listCategories().catch(() => []),
       ])
       setArticles(list)
@@ -111,29 +112,13 @@ export default function AdminReviewPage({ viewOnly }: Props) {
     }
   }
 
-  async function handlePublish(article: Article) {
-    if (viewOnly) return
-    setActingId(article.id)
-    setError(null)
-    setSuccess(null)
-    try {
-      const user = auth.currentUser
-      if (!user) throw new Error('Sessão expirada.')
-      const token = await user.getIdToken()
-      await publishArticle(article.id, token)
-      setSuccess(`Publicado no portal: ${article.adaptedTitle}`)
-      await load()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao publicar.')
-    } finally {
-      setActingId(null)
-    }
-  }
-
   function categoryLabel(ids: string[]): string {
     if (!ids.length) return '—'
     return ids.map((id) => categoryNames[id] ?? id).join(', ')
   }
+
+  const canActOn =
+    (status: ArticleStatus) => status === 'review' || status === 'rejected'
 
   const pendingCount = articles.filter((a) => a.status === 'review').length
 
@@ -143,7 +128,7 @@ export default function AdminReviewPage({ viewOnly }: Props) {
         <div>
           <Heading level={2}>Aguardando revisão</Heading>
           <Text variant="muted" className="mt-1">
-            Compare o original com a versão da IA. Ao aprovar, a matéria já
+            Compare o original com a versão preparada. Ao aprovar, a matéria já
             entra no feed do portal.
           </Text>
         </div>
@@ -158,7 +143,6 @@ export default function AdminReviewPage({ viewOnly }: Props) {
             onChange={(e) => setFilter(e.target.value as FilterStatus)}
           >
             <option value="review">Em revisão</option>
-            <option value="approved">Aprovados</option>
             <option value="published">Publicados</option>
             <option value="rejected">Rejeitados</option>
             <option value="all">Todos</option>
@@ -171,6 +155,15 @@ export default function AdminReviewPage({ viewOnly }: Props) {
           <p className="text-sm">
             Seu perfil é de visualização. Aprovar ou rejeitar exige permissão de
             edição total.
+          </p>
+        </Alert>
+      )}
+
+      {!isAiApiConfigured() && !viewOnly && (
+        <Alert variant="info">
+          <p className="text-sm">
+            Defina <code className="text-xs">VITE_API_URL</code> e suba o
+            backend (uvicorn na porta 8000) para aprovar ou rejeitar.
           </p>
         </Alert>
       )}
@@ -200,8 +193,7 @@ export default function AdminReviewPage({ viewOnly }: Props) {
         <Card>
           <CardContent className="py-10 text-center">
             <Text variant="muted">
-              Nenhum artigo neste filtro. Processe notícias coletadas com IA
-              primeiro.
+              Nenhum artigo neste filtro. Processe notícias coletadas primeiro.
             </Text>
           </CardContent>
         </Card>
@@ -274,7 +266,7 @@ export default function AdminReviewPage({ viewOnly }: Props) {
                     )}
                   </div>
                   <div className="rounded-lg border border-border bg-background p-4">
-                    <Text variant="small">Adaptado pela IA</Text>
+                    <Text variant="small">Versão para o portal</Text>
                     <p className="mt-2 text-sm font-semibold">
                       {item.adaptedTitle}
                     </p>
@@ -290,7 +282,7 @@ export default function AdminReviewPage({ viewOnly }: Props) {
                 {item.aiWarnings.length > 0 && (
                   <Alert variant="warning">
                     <p className="text-sm">
-                      Avisos da IA: {item.aiWarnings.join(' · ')}
+                      Avisos: {item.aiWarnings.join(' · ')}
                     </p>
                   </Alert>
                 )}
@@ -301,7 +293,19 @@ export default function AdminReviewPage({ viewOnly }: Props) {
                   </Text>
                 )}
 
-                {!viewOnly && item.status === 'review' && (
+                {item.status === 'published' && onOpenPortal && (
+                  <div className="border-t border-border pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onOpenPortal(`/noticias/${item.id}`)}
+                    >
+                      Abrir no portal
+                    </Button>
+                  </div>
+                )}
+
+                {!viewOnly && canActOn(item.status) && (
                   <div className="space-y-3 border-t border-border pt-4">
                     <div className="space-y-2">
                       <Text variant="small">Motivo da rejeição (opcional)</Text>
@@ -324,40 +328,22 @@ export default function AdminReviewPage({ viewOnly }: Props) {
                         disabled={!isAiApiConfigured()}
                         onClick={() => void handleApprove(item)}
                       >
-                        Aprovar e publicar
+                        {item.status === 'rejected'
+                          ? 'Reaprovar e publicar'
+                          : 'Aprovar e publicar'}
                       </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        loading={actingId === item.id}
-                        disabled={!isAiApiConfigured()}
-                        onClick={() => void handleReject(item)}
-                      >
-                        Rejeitar
-                      </Button>
+                      {item.status === 'review' && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          loading={actingId === item.id}
+                          disabled={!isAiApiConfigured()}
+                          onClick={() => void handleReject(item)}
+                        >
+                          Rejeitar
+                        </Button>
+                      )}
                     </div>
-                  </div>
-                )}
-
-                {!viewOnly && item.status === 'approved' && (
-                  <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-                    <Button
-                      type="button"
-                      loading={actingId === item.id}
-                      disabled={!isAiApiConfigured()}
-                      onClick={() => void handlePublish(item)}
-                    >
-                      Publicar no portal
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      loading={actingId === item.id}
-                      disabled={!isAiApiConfigured()}
-                      onClick={() => void handleReject(item)}
-                    >
-                      Rejeitar
-                    </Button>
                   </div>
                 )}
               </CardContent>

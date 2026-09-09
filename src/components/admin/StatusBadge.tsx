@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui'
-import { statusLabel } from '@/data/adminMock'
+import { statusLabel } from '@/lib/statusLabels'
 
 const variantByStatus: Record<
   string,
@@ -8,6 +8,7 @@ const variantByStatus: Record<
   active: 'success',
   inactive: 'muted',
   collected: 'navy',
+  prepared: 'success',
   processing: 'warning',
   review: 'warning',
   approved: 'success',
@@ -21,6 +22,8 @@ const variantByStatus: Record<
 
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <Badge variant={variantByStatus[status] ?? 'muted'}>{statusLabel(status)}</Badge>
+    <Badge variant={variantByStatus[status] ?? 'muted'}>
+      {statusLabel(status)}
+    </Badge>
   )
 }

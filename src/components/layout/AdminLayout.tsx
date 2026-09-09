@@ -10,7 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import { signOut, type User } from 'firebase/auth'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   adminNavItems,
   getAdminPageTitle,
@@ -20,6 +20,8 @@ import { Button, Logo, Text } from '@/components/ui'
 import { auth } from '@/lib/firebase'
 import type { UserProfile } from '@/types/user'
 import { cn } from '@/lib/utils'
+
+const MOBILE_DRAWER_MS = 280
 
 const iconMap = {
   dashboard: LayoutDashboard,
@@ -36,7 +38,7 @@ interface AdminLayoutProps {
   profile: UserProfile
   activeNav: AdminPageId
   onNavigate: (page: AdminPageId) => void
-  onOpenPortal?: () => void
+  onOpenPortal?: (path?: string) => void
   children: ReactNode
 }
 
@@ -49,10 +51,33 @@ export default function AdminLayout({
   children,
 }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileMounted, setMobileMounted] = useState(false)
+  const [mobileEntered, setMobileEntered] = useState(false)
   const permissionLabel =
     profile.isPrincipal || profile.adminPermission === 'full'
       ? 'Edição total'
       : 'Somente visualização'
+
+  useEffect(() => {
+    if (mobileOpen) {
+      setMobileMounted(true)
+      const id = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setMobileEntered(true))
+      })
+      return () => cancelAnimationFrame(id)
+    }
+
+    setMobileEntered(false)
+    const timeout = window.setTimeout(
+      () => setMobileMounted(false),
+      MOBILE_DRAWER_MS,
+    )
+    return () => window.clearTimeout(timeout)
+  }, [mobileOpen])
+
+  function closeMobile() {
+    setMobileOpen(false)
+  }
 
   function handleLogout() {
     void signOut(auth)
@@ -60,7 +85,7 @@ export default function AdminLayout({
 
   function handleNav(page: AdminPageId) {
     onNavigate(page)
-    setMobileOpen(false)
+    closeMobile()
   }
 
   return (
@@ -135,8 +160,9 @@ export default function AdminLayout({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                className="rounded-lg border border-border p-2 text-foreground lg:hidden"
+                className="rounded-lg border border-border p-2 text-foreground transition-colors hover:bg-muted lg:hidden"
                 aria-label="Abrir menu"
+                aria-expanded={mobileOpen}
                 onClick={() => setMobileOpen(true)}
               >
                 <Menu className="size-5" />
@@ -175,27 +201,38 @@ export default function AdminLayout({
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+      {mobileMounted && (
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
           <button
             type="button"
-            className="absolute inset-0 bg-navy-950/50"
+            className={cn(
+              'absolute inset-0 bg-navy-950/55 transition-opacity ease-out',
+              mobileEntered ? 'opacity-100' : 'opacity-0',
+            )}
+            style={{ transitionDuration: `${MOBILE_DRAWER_MS}ms` }}
             aria-label="Fechar menu"
-            onClick={() => setMobileOpen(false)}
+            onClick={closeMobile}
           />
-          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col bg-navy-900 text-white shadow-[var(--shadow-elevated)]">
+          <aside
+            className={cn(
+              'absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-navy-900 text-white shadow-[var(--shadow-elevated)] transition-transform ease-out will-change-transform',
+              mobileEntered ? 'translate-x-0' : '-translate-x-full',
+            )}
+            style={{ transitionDuration: `${MOBILE_DRAWER_MS}ms` }}
+          >
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
               <Logo size="sm" />
               <button
                 type="button"
-                className="rounded-lg p-2 hover:bg-white/10"
-                onClick={() => setMobileOpen(false)}
+                className="rounded-lg p-2 transition-colors hover:bg-white/10"
+                aria-label="Fechar menu"
+                onClick={closeMobile}
               >
                 <X className="size-5" />
               </button>
             </div>
-            <nav className="flex-1 space-y-1 px-3 py-4">
-              {adminNavItems.map((item) => {
+            <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+              {adminNavItems.map((item, index) => {
                 const Icon = iconMap[item.id]
                 const isActive = item.id === activeNav
 
@@ -205,9 +242,17 @@ export default function AdminLayout({
                     type="button"
                     onClick={() => handleNav(item.id)}
                     className={cn(
-                      'flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left',
+                      'flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-[background-color,opacity,transform] duration-300 ease-out',
                       isActive ? 'bg-white/10' : 'hover:bg-white/5',
+                      mobileEntered
+                        ? 'translate-x-0 opacity-100'
+                        : '-translate-x-2 opacity-0',
                     )}
+                    style={{
+                      transitionDelay: mobileEntered
+                        ? `${40 + index * 28}ms`
+                        : '0ms',
+                    }}
                   >
                     <Icon className="mt-0.5 size-4" strokeWidth={1.75} />
                     <span className="text-sm font-medium">{item.label}</span>

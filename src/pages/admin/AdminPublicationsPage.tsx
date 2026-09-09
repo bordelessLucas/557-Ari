@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import { ExternalLink } from 'lucide-react'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import {
   Alert,
   Badge,
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -21,9 +23,13 @@ import {
 
 interface Props {
   viewOnly?: boolean
+  onOpenPortal?: (path?: string) => void
 }
 
-export default function AdminPublicationsPage({ viewOnly }: Props) {
+export default function AdminPublicationsPage({
+  viewOnly,
+  onOpenPortal,
+}: Props) {
   const [items, setItems] = useState<Publication[]>([])
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -61,6 +67,11 @@ export default function AdminPublicationsPage({ viewOnly }: Props) {
   function categoryLabel(ids: string[]): string {
     if (!ids.length) return '—'
     return ids.map((id) => categoryNames[id] ?? id).join(', ')
+  }
+
+  function openInPortal(pub: Publication) {
+    if (!pub.articleId || !onOpenPortal) return
+    onOpenPortal(`/noticias/${pub.articleId}`)
   }
 
   return (
@@ -110,13 +121,18 @@ export default function AdminPublicationsPage({ viewOnly }: Props) {
                 </div>
                 <StatusBadge status={pub.status} />
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 <Text variant="small">{pub.summary}</Text>
-                {pub.portalPath && (
-                  <Text variant="small">
-                    Caminho no portal: {pub.portalPath} — abra com{' '}
-                    <strong>Ver portal</strong> no menu admin.
-                  </Text>
+                {pub.articleId && onOpenPortal && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openInPortal(pub)}
+                  >
+                    <ExternalLink className="size-3.5" />
+                    Abrir no portal
+                  </Button>
                 )}
               </CardContent>
             </Card>

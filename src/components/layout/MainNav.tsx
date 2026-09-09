@@ -1,10 +1,13 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Menu, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { mainNavItems } from '@/constants/navigation'
 import NavSearch from '@/components/layout/NavSearch'
 import { Container } from '@/components/ui'
 import { cn } from '@/lib/utils'
+
+/** Só seções com destino real (sem “Em breve”). */
+const liveNavItems = mainNavItems.filter((item) => Boolean(item.categories))
 
 function categoryPath(slug: string) {
   return `/noticias/categoria/${slug}`
@@ -17,8 +20,7 @@ function CategoryMegaMenu({
   open: boolean
   onClose: () => void
 }) {
-  const menuRef = useRef<HTMLDivElement>(null)
-  const newsItem = mainNavItems.find((item) => item.categories)
+  const newsItem = liveNavItems.find((item) => item.categories)
 
   useEffect(() => {
     if (!open) return
@@ -35,7 +37,6 @@ function CategoryMegaMenu({
 
   return (
     <div
-      ref={menuRef}
       className={cn(
         'absolute left-0 right-0 top-full z-50 overflow-hidden border-t border-red-900/30 bg-[#e8e8e8] shadow-[var(--shadow-elevated)] transition-all duration-300 ease-out',
         open
@@ -80,9 +81,25 @@ function CategoryMegaMenu({
 export default function MainNav() {
   const [newsOpen, setNewsOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileEntered, setMobileEntered] = useState(false)
   const [mobileNewsOpen, setMobileNewsOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const navRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (mobileOpen) {
+      const id = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setMobileEntered(true))
+      })
+      return () => cancelAnimationFrame(id)
+    }
+    setMobileEntered(false)
+  }, [mobileOpen])
+
+  function closeMobile() {
+    setMobileOpen(false)
+    setMobileNewsOpen(false)
+  }
 
   return (
     <nav
@@ -95,52 +112,34 @@ export default function MainNav() {
       <Container size="lg">
         <div className="flex items-center justify-between">
           <ul className="hidden items-stretch lg:flex">
-            {mainNavItems.map((item) => {
-              const hasCategories = !!item.categories
-
-              if (hasCategories) {
-                return (
-                  <li
-                    key={item.href}
-                    className="relative"
-                    onMouseEnter={() => {
-                      if (!searchOpen) setNewsOpen(true)
-                    }}
-                  >
-                    <button
-                      type="button"
-                      aria-expanded={newsOpen}
-                      aria-haspopup="true"
-                      onClick={() => setNewsOpen((current) => !current)}
-                      className={cn(
-                        'flex h-11 items-center gap-1 px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-red-900/60',
-                        newsOpen && 'bg-red-900/60',
-                      )}
-                    >
-                      {item.label}
-                      <ChevronDown
-                        className={cn(
-                          'size-4 transition-transform duration-300',
-                          newsOpen && 'rotate-180',
-                        )}
-                        strokeWidth={2}
-                      />
-                    </button>
-                  </li>
-                )
-              }
-
+            {liveNavItems.map((item) => {
               return (
-                <li key={item.href}>
-                  <span
-                    title="Em breve"
-                    className="flex h-11 cursor-default items-center gap-2 px-4 text-sm font-semibold text-white/70"
+                <li
+                  key={item.href}
+                  className="relative"
+                  onMouseEnter={() => {
+                    if (!searchOpen) setNewsOpen(true)
+                  }}
+                >
+                  <button
+                    type="button"
+                    aria-expanded={newsOpen}
+                    aria-haspopup="true"
+                    onClick={() => setNewsOpen((current) => !current)}
+                    className={cn(
+                      'flex h-11 items-center gap-1 px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-red-900/60',
+                      newsOpen && 'bg-red-900/60',
+                    )}
                   >
                     {item.label}
-                    <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/90">
-                      Em breve
-                    </span>
-                  </span>
+                    <ChevronDown
+                      className={cn(
+                        'size-4 transition-transform duration-300',
+                        newsOpen && 'rotate-180',
+                      )}
+                      strokeWidth={2}
+                    />
+                  </button>
                 </li>
               )
             })}
@@ -150,21 +149,24 @@ export default function MainNav() {
             type="button"
             className="flex h-11 items-center gap-2 px-2 text-sm font-semibold text-white lg:hidden"
             aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
             onClick={() => setMobileOpen((current) => !current)}
           >
+            {mobileOpen ? (
+              <X className="size-5" strokeWidth={2} />
+            ) : (
+              <Menu className="size-5" strokeWidth={2} />
+            )}
             Menu
-            <ChevronDown
-              className={cn(
-                'size-4 transition-transform duration-300',
-                mobileOpen && 'rotate-180',
-              )}
-            />
           </button>
 
           <NavSearch
             onOpenChange={(open) => {
               setSearchOpen(open)
-              if (open) setNewsOpen(false)
+              if (open) {
+                setNewsOpen(false)
+                closeMobile()
+              }
             }}
           />
         </div>
@@ -172,71 +174,87 @@ export default function MainNav() {
 
       <CategoryMegaMenu open={newsOpen} onClose={() => setNewsOpen(false)} />
 
-      <div
-        className={cn(
-          'overflow-hidden border-t border-red-900/30 bg-red-800 transition-all duration-300 ease-out lg:hidden',
-          mobileOpen ? 'max-h-[80vh] opacity-100' : 'max-h-0 opacity-0',
-        )}
-      >
-        <Container size="lg" className="py-3">
-          <ul className="space-y-1">
-            {mainNavItems.map((item) => (
-              <li key={item.href}>
-                {item.categories ? (
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => setMobileNewsOpen((current) => !current)}
-                      className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-900/60"
-                    >
-                      {item.label}
-                      <ChevronDown
-                        className={cn(
-                          'size-4 transition-transform duration-300',
-                          mobileNewsOpen && 'rotate-180',
-                        )}
-                      />
-                    </button>
-                    <div
-                      className={cn(
-                        'overflow-hidden transition-all duration-300 ease-out',
-                        mobileNewsOpen
-                          ? 'max-h-96 opacity-100'
-                          : 'max-h-0 opacity-0',
-                      )}
-                    >
-                      <div className="mt-1 rounded-lg bg-[#e8e8e8] p-4">
-                        <div className="grid gap-3">
-                          {item.categories.flat().map((category) => (
-                            <Link
-                              key={category.slug}
-                              to={categoryPath(category.slug)}
-                              className="block text-sm font-medium text-neutral-800 hover:text-red-700"
-                              onClick={() => {
-                                setMobileOpen(false)
-                                setMobileNewsOpen(false)
-                              }}
-                            >
-                              {category.label}
-                            </Link>
-                          ))}
+      {mobileOpen && (
+        <div className="lg:hidden">
+          <button
+            type="button"
+            className={cn(
+              'fixed inset-0 z-40 bg-navy-950/50 transition-opacity',
+              mobileEntered ? 'opacity-100' : 'opacity-0',
+            )}
+            aria-label="Fechar menu"
+            onClick={closeMobile}
+          />
+          <div
+            className={cn(
+              'relative z-50 border-t border-red-900/30 bg-red-800 shadow-[var(--shadow-elevated)] transition-[max-height,opacity] duration-300 ease-out',
+              mobileEntered
+                ? 'max-h-[min(85dvh,calc(100dvh-6.5rem))] opacity-100'
+                : 'max-h-0 overflow-hidden opacity-0',
+            )}
+          >
+            <div
+              className={cn(
+                'overscroll-contain py-3',
+                mobileEntered && 'max-h-[min(85dvh,calc(100dvh-6.5rem))] overflow-y-auto',
+              )}
+            >
+              <Container size="lg">
+                <ul className="space-y-1">
+                  {liveNavItems.map((item) => (
+                    <li key={item.href}>
+                      {item.categories && (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMobileNewsOpen((current) => !current)
+                            }
+                            className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-900/60"
+                          >
+                            {item.label}
+                            <ChevronDown
+                              className={cn(
+                                'size-4 transition-transform duration-300',
+                                mobileNewsOpen && 'rotate-180',
+                              )}
+                            />
+                          </button>
+                          {mobileNewsOpen && (
+                            <div className="mt-1 rounded-lg bg-[#e8e8e8] p-4">
+                              <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
+                                {item.categories.flat().map((category) => (
+                                  <Link
+                                    key={category.slug}
+                                    to={categoryPath(category.slug)}
+                                    className="block text-sm font-medium text-neutral-800 hover:text-red-700"
+                                    onClick={closeMobile}
+                                  >
+                                    {category.label}
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <span className="flex items-center justify-between rounded-md px-3 py-2.5 text-sm font-semibold text-white/70">
-                    {item.label}
-                    <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-                      Em breve
-                    </span>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Container>
-      </div>
+                      )}
+                    </li>
+                  ))}
+                  <li>
+                    <Link
+                      to="/"
+                      className="block rounded-md px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-900/60"
+                      onClick={closeMobile}
+                    >
+                      Início
+                    </Link>
+                  </li>
+                </ul>
+              </Container>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   )
 }
