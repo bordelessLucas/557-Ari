@@ -90,15 +90,15 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-muted lg:grid lg:grid-cols-[260px_1fr]">
-      <aside className="hidden border-r border-border bg-navy-900 text-white lg:flex lg:flex-col">
-        <div className="border-b border-white/10 px-5 py-5">
+      <aside className="sticky top-0 z-30 hidden h-svh flex-col overflow-hidden border-r border-border bg-navy-900 text-white lg:flex">
+        <div className="shrink-0 border-b border-white/10 px-5 py-5">
           <Logo size="md" />
           <p className="mt-3 text-[11px] font-medium uppercase tracking-wider text-navy-200">
             Painel administrativo
           </p>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4">
           {adminNavItems.map((item) => {
             const Icon = iconMap[item.id]
             const isActive = item.id === activeNav
@@ -115,7 +115,11 @@ export default function AdminLayout({
                     : 'text-navy-100 hover:bg-white/5 hover:text-white',
                 )}
               >
-                <Icon className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
+                <Icon
+                  className="mt-0.5 size-4 shrink-0 text-current"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
                 <span>
                   <span className="block text-sm font-medium">{item.label}</span>
                   <span className="mt-0.5 block text-xs text-navy-300">
@@ -127,7 +131,7 @@ export default function AdminLayout({
           })}
         </nav>
 
-        <div className="border-t border-white/10 px-4 py-4">
+        <div className="shrink-0 border-t border-white/10 px-4 py-4">
           <Text variant="small" className="text-navy-300">
             {user.email}
           </Text>
@@ -137,7 +141,7 @@ export default function AdminLayout({
               variant="ghost"
               size="sm"
               className="mt-3 w-full justify-start border border-white/20 text-white hover:bg-white/10"
-              onClick={onOpenPortal}
+              onClick={() => onOpenPortal?.()}
             >
               Ver portal do leitor
             </Button>
@@ -148,7 +152,7 @@ export default function AdminLayout({
             className="mt-2 w-full justify-start border border-white/20 text-white hover:bg-white/10"
             onClick={handleLogout}
           >
-            <LogOut className="size-4" />
+            <LogOut className="size-4 shrink-0" />
             Sair
           </Button>
         </div>
@@ -179,7 +183,11 @@ export default function AdminLayout({
 
             <div className="flex items-center gap-2">
               {onOpenPortal && (
-                <Button variant="outline" size="sm" onClick={onOpenPortal}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onOpenPortal()}
+                >
                   Ver portal
                 </Button>
               )}
