@@ -73,6 +73,10 @@
     border-color: var(--color-border);
   }
 
+  html {
+    caret-color: transparent;
+  }
+
   body {
     margin: 0;
     font-family: var(--font-sans);
@@ -83,5 +87,15 @@
     color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    caret-color: transparent;
+  }
+
+  /* Caret só onde dá para digitar de verdade */
+  input:not([type='button']):not([type='submit']):not([type='reset']):not(
+      [type='checkbox']
+    ):not([type='radio']):not([readonly]):not([disabled]),
+  textarea:not([readonly]):not([disabled]),
+  [contenteditable='true'] {
+    caret-color: auto;
   }
 }

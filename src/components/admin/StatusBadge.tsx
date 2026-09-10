@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui'
 import { statusLabel } from '@/lib/statusLabels'
+import { cn } from '@/lib/utils'
 
 const variantByStatus: Record<
   string,
@@ -20,9 +21,18 @@ const variantByStatus: Record<
   view: 'muted',
 }
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({
+  status,
+  className,
+}: {
+  status: string
+  className?: string
+}) {
   return (
-    <Badge variant={variantByStatus[status] ?? 'muted'}>
+    <Badge
+      variant={variantByStatus[status] ?? 'muted'}
+      className={cn('whitespace-nowrap', className)}
+    >
       {statusLabel(status)}
     </Badge>
   )

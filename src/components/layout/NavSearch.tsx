@@ -151,23 +151,18 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
             : 'w-11 border border-transparent bg-transparent',
         )}
       >
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar notícias..."
-          aria-label="Buscar notícias"
-          tabIndex={open ? 0 : -1}
-          readOnly={!open}
-          className={cn(
-            'min-w-0 border-0 bg-transparent text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-0 [&::-webkit-search-cancel-button]:hidden',
-            'transition-[flex-grow,opacity,padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-            open
-              ? 'flex-1 px-3 opacity-100'
-              : 'pointer-events-none w-0 flex-none px-0 opacity-0',
-          )}
-        />
+        {open && (
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar notícias..."
+            aria-label="Buscar notícias"
+            autoComplete="off"
+            className="min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-0 [&::-webkit-search-cancel-button]:hidden"
+          />
+        )}
 
         <button
           type="button"

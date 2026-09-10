@@ -221,3 +221,69 @@ def publish_article(article_id: str, admin: AdminUser) -> dict[str, Any]:
         "status": "published",
         "publicationId": publication_ref.id,
     }
+
+
+def unpublish_article(article_id: str, admin: AdminUser) -> dict[str, Any]:
+    """Revoga publicação: article volta para revisão; publications marcadas unpublished."""
+    ref, data = _get_article(article_id)
+    if data.get("status") != "published":
+        raise ValueError(
+            f"Só é possível revogar artigos publicados (status={data.get('status')})."
+        )
+
+    db = get_db()
+    ref.update(
+        {
+            "status": "review",
+            "publishedAt": None,
+            "publishedBy": None,
+            "updatedAt": SERVER_TIMESTAMP,
+        }
+    )
+
+    pubs = (
+        db.collection("publications")
+        .where("articleId", "==", article_id)
+        .stream()
+    )
+    unpublished = 0
+    for snap in pubs:
+        snap.reference.update(
+            {
+                "status": "unpublished",
+                "unpublishedAt": SERVER_TIMESTAMP,
+                "unpublishedBy": admin.uid,
+                "updatedAt": SERVER_TIMESTAMP,
+            }
+        )
+        unpublished += 1
+
+    collected_id = data.get("collectedNewsId")
+    if collected_id:
+        try:
+            db.collection("collectedNews").document(collected_id).update(
+                {
+                    "status": "collected",
+                    "processedByAi": True,
+                    "updatedAt": SERVER_TIMESTAMP,
+                }
+            )
+        except Exception:
+            pass
+
+    db.collection("activityLogs").add(
+        {
+            "type": "publication",
+            "action": "unpublished",
+            "userId": admin.uid,
+            "articleId": article_id,
+            "detail": f"Publicação revogada: {data.get('adaptedTitle', '')[:120]}",
+            "createdAt": SERVER_TIMESTAMP,
+        }
+    )
+
+    return {
+        "articleId": article_id,
+        "status": "review",
+        "publicationsUnpublished": unpublished,
+    }

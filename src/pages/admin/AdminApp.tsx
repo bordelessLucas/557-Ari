@@ -75,6 +75,7 @@ export default function AdminApp({ user, profile, onOpenPortal }: AdminAppProps)
       <AdminPublicationsPage
         viewOnly={viewOnly}
         onOpenPortal={onOpenPortal}
+        onNavigate={handleNavigate}
       />
     )
   }

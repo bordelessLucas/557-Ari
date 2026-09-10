@@ -5,6 +5,7 @@ import {
   listPublications,
 } from '@/services/publicationService'
 import { listSources } from '@/services/sourceService'
+import type { AdminPageId } from '@/constants/adminNavigation'
 
 export interface AdminDashboardMetrics {
   activeSources: number
@@ -22,6 +23,9 @@ export interface AdminDashboardActivity {
   detail: string
   at: Date | null
   type: 'publish' | 'review' | 'reject'
+  articleId?: string
+  targetPage: AdminPageId
+  reviewFilter?: 'review' | 'published' | 'rejected' | 'all'
 }
 
 export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics> {
@@ -41,7 +45,7 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
     ).length,
     awaitingReview: articles.filter((a) => a.status === 'review').length,
     rejected: articles.filter((a) => a.status === 'rejected').length,
-    published: publications.length,
+    published: publications.filter((p) => p.status === 'published').length,
   }
 }
 
@@ -56,12 +60,16 @@ export async function getAdminRecentActivities(
   const activities: AdminDashboardActivity[] = []
 
   for (const pub of publications) {
+    if (pub.status === 'unpublished') continue
     activities.push({
       id: `pub-${pub.id}`,
       action: 'Publicação no portal',
       detail: pub.title,
       at: pub.publishedAt,
       type: 'publish',
+      articleId: pub.articleId || undefined,
+      targetPage: 'publications',
+      reviewFilter: 'published',
     })
   }
 
@@ -73,6 +81,9 @@ export async function getAdminRecentActivities(
         detail: article.adaptedTitle || article.originalTitle,
         at: article.reviewedAt,
         type: 'reject',
+        articleId: article.id,
+        targetPage: 'review',
+        reviewFilter: 'rejected',
       })
     } else if (article.status === 'review' && article.createdAt) {
       activities.push({
@@ -81,6 +92,9 @@ export async function getAdminRecentActivities(
         detail: article.adaptedTitle || article.originalTitle,
         at: article.createdAt,
         type: 'review',
+        articleId: article.id,
+        targetPage: 'review',
+        reviewFilter: 'review',
       })
     }
   }

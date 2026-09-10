@@ -66,7 +66,9 @@ export async function listPublications(maxItems = 50): Promise<Publication[]> {
       limit(maxItems),
     ),
   )
-  return snapshot.docs.map((item) => mapPublication(item.id, item.data()))
+  return snapshot.docs
+    .map((item) => mapPublication(item.id, item.data()))
+    .filter((item) => item.status !== 'unpublished')
 }
 
 export function formatPublicationDate(value: Date | null): string {

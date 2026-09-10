@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ReviewCompareGrid } from '@/components/admin/ReviewComparePanel'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import {
   Alert,
@@ -14,11 +15,17 @@ import {
   Text,
   Textarea,
 } from '@/components/ui'
+import {
+  consumeAdminFocusArticle,
+  consumeAdminReviewFilter,
+} from '@/lib/adminFocus'
 import { auth } from '@/lib/firebase'
+import { cn } from '@/lib/utils'
 import {
   approveArticle,
   isAiApiConfigured,
   rejectArticle,
+  unpublishArticle,
 } from '@/services/aiApi'
 import {
   formatArticleDate,
@@ -36,7 +43,9 @@ interface Props {
 type FilterStatus = 'review' | 'published' | 'rejected' | 'all'
 
 export default function AdminReviewPage({ viewOnly, onOpenPortal }: Props) {
-  const [filter, setFilter] = useState<FilterStatus>('review')
+  const [filter, setFilter] = useState<FilterStatus>(
+    () => consumeAdminReviewFilter() ?? 'review',
+  )
   const [articles, setArticles] = useState<Article[]>([])
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -44,6 +53,10 @@ export default function AdminReviewPage({ viewOnly, onOpenPortal }: Props) {
   const [rejectReasons, setRejectReasons] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [focusArticleId, setFocusArticleId] = useState<string | null>(() =>
+    consumeAdminFocusArticle(),
+  )
+  const focusedRef = useRef<HTMLDivElement | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,6 +86,15 @@ export default function AdminReviewPage({ viewOnly, onOpenPortal }: Props) {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!focusArticleId || loading) return
+    const node = focusedRef.current
+    if (!node) return
+    node.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const timeout = window.setTimeout(() => setFocusArticleId(null), 4000)
+    return () => window.clearTimeout(timeout)
+  }, [focusArticleId, loading, articles])
 
   async function handleApprove(article: Article) {
     if (viewOnly) return
@@ -107,6 +129,34 @@ export default function AdminReviewPage({ viewOnly, onOpenPortal }: Props) {
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao rejeitar.')
+    } finally {
+      setActingId(null)
+    }
+  }
+
+  async function handleUnpublish(article: Article) {
+    if (viewOnly) return
+    setActingId(article.id)
+    setError(null)
+    setSuccess(null)
+    try {
+      const user = auth.currentUser
+      if (!user) throw new Error('Sessão expirada.')
+      const token = await user.getIdToken()
+      await unpublishArticle(article.id, token)
+      setSuccess(
+        `Publicação revogada. A matéria voltou para revisão: ${article.adaptedTitle}`,
+      )
+      setFocusArticleId(article.id)
+      if (filter !== 'review') {
+        setFilter('review')
+      } else {
+        await load()
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Falha ao revogar publicação.',
+      )
     } finally {
       setActingId(null)
     }
@@ -200,7 +250,15 @@ export default function AdminReviewPage({ viewOnly, onOpenPortal }: Props) {
       ) : (
         <div className="space-y-4">
           {articles.map((item) => (
-            <Card key={item.id}>
+            <div
+              key={item.id}
+              ref={item.id === focusArticleId ? focusedRef : undefined}
+              className={cn(
+                item.id === focusArticleId &&
+                  'rounded-xl ring-2 ring-navy-500 ring-offset-2',
+              )}
+            >
+            <Card>
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -245,39 +303,41 @@ export default function AdminReviewPage({ viewOnly, onOpenPortal }: Props) {
                   />
                 )}
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-lg border border-border bg-muted/30 p-4">
-                    <Text variant="small">Original</Text>
-                    <p className="mt-2 text-sm font-semibold">
-                      {item.originalTitle}
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {item.originalSummary || '—'}
-                    </p>
-                    {item.originalUrl && (
-                      <a
-                        href={item.originalUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-block text-xs text-navy-600 hover:underline"
-                      >
-                        Abrir fonte
-                      </a>
-                    )}
-                  </div>
-                  <div className="rounded-lg border border-border bg-background p-4">
-                    <Text variant="small">Versão para o portal</Text>
-                    <p className="mt-2 text-sm font-semibold">
-                      {item.adaptedTitle}
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {item.adaptedSummary}
-                    </p>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                      {item.adaptedBody}
-                    </p>
-                  </div>
-                </div>
+                <ReviewCompareGrid
+                  original={
+                    <>
+                      <p className="text-sm font-semibold">
+                        {item.originalTitle}
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {item.originalSummary || '—'}
+                      </p>
+                      {item.originalUrl && (
+                        <a
+                          href={item.originalUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-block text-xs text-navy-600 hover:underline"
+                        >
+                          Abrir fonte
+                        </a>
+                      )}
+                    </>
+                  }
+                  adapted={
+                    <>
+                      <p className="text-sm font-semibold">
+                        {item.adaptedTitle}
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {item.adaptedSummary}
+                      </p>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                        {item.adaptedBody}
+                      </p>
+                    </>
+                  }
+                />
 
                 {item.aiWarnings.length > 0 && (
                   <Alert variant="warning">
@@ -293,15 +353,28 @@ export default function AdminReviewPage({ viewOnly, onOpenPortal }: Props) {
                   </Text>
                 )}
 
-                {item.status === 'published' && onOpenPortal && (
-                  <div className="border-t border-border pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => onOpenPortal(`/noticias/${item.id}`)}
-                    >
-                      Abrir no portal
-                    </Button>
+                {item.status === 'published' && (
+                  <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                    {onOpenPortal && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onOpenPortal(`/noticias/${item.id}`)}
+                      >
+                        Abrir no portal
+                      </Button>
+                    )}
+                    {!viewOnly && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        loading={actingId === item.id}
+                        disabled={!isAiApiConfigured()}
+                        onClick={() => void handleUnpublish(item)}
+                      >
+                        Revogar publicação
+                      </Button>
+                    )}
                   </div>
                 )}
 
@@ -348,6 +421,7 @@ export default function AdminReviewPage({ viewOnly, onOpenPortal }: Props) {
                 )}
               </CardContent>
             </Card>
+            </div>
           ))}
         </div>
       )}

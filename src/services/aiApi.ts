@@ -132,3 +132,23 @@ export async function publishArticle(
   if (!response.ok) throw new Error(await parseError(response))
   return (await response.json()) as ReviewActionResponse
 }
+
+export async function unpublishArticle(
+  articleId: string,
+  idToken: string,
+): Promise<ReviewActionResponse> {
+  if (!API_URL) {
+    throw new Error('API não configurada. Defina VITE_API_URL.')
+  }
+
+  const response = await fetch(
+    `${API_URL}/review/${encodeURIComponent(articleId)}/unpublish`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${idToken}` },
+    },
+  )
+
+  if (!response.ok) throw new Error(await parseError(response))
+  return (await response.json()) as ReviewActionResponse
+}
