@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     firebase_service_account_json: str | None = None
     cors_origins: str = (
         "http://localhost:5173,http://localhost:5174,"
-        "http://127.0.0.1:5173,http://127.0.0.1:5174"
+        "http://127.0.0.1:5173,http://127.0.0.1:5174,"
+        "https://ari-b0f40.web.app,https://ari-b0f40.firebaseapp.com"
     )
     collect_max_items_per_source: int = 30
     openai_api_key: str | None = None

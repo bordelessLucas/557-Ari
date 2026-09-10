@@ -89,17 +89,17 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-muted lg:grid lg:grid-cols-[260px_1fr]">
-      {/* Sidebar inteira, sem scroll interno; trava no fim ao rolar a página */}
-      <aside className="sticky top-[min(0px,calc(100vh-100%))] z-30 hidden self-start border-r border-border bg-navy-900 text-white lg:flex lg:w-full lg:flex-col">
-        <div className="border-b border-white/10 px-5 py-5">
+    <div className="h-svh overflow-hidden bg-muted lg:grid lg:grid-cols-[260px_1fr]">
+      {/* Scroll próprio da sidebar — não move o dashboard */}
+      <aside className="hidden h-svh flex-col overflow-y-auto overscroll-contain border-r border-border bg-navy-900 text-white [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.25)_transparent] lg:flex">
+        <div className="shrink-0 border-b border-white/10 px-5 py-5">
           <Logo size="md" />
           <p className="mt-3 text-[11px] font-medium uppercase tracking-wider text-navy-200">
             Painel administrativo
           </p>
         </div>
 
-        <nav className="space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1 px-3 py-4">
           {adminNavItems.map((item) => {
             const Icon = iconMap[item.id]
             const isActive = item.id === activeNav
@@ -132,7 +132,7 @@ export default function AdminLayout({
           })}
         </nav>
 
-        <div className="border-t border-white/10 px-4 py-4">
+        <div className="shrink-0 border-t border-white/10 px-4 py-4">
           <Text variant="small" className="text-navy-300">
             {user.email}
           </Text>
@@ -159,8 +159,9 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+      {/* Scroll próprio do conteúdo — não move a sidebar */}
+      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+        <header className="z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur">
           <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <div className="flex items-center gap-3">
               <button
@@ -207,7 +208,9 @@ export default function AdminLayout({
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 [scrollbar-width:thin] sm:px-6 lg:px-8">
+          {children}
+        </main>
       </div>
 
       {mobileMounted && (

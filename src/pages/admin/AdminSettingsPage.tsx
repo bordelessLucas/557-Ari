@@ -39,7 +39,11 @@ export default function AdminSettingsPage({ profile }: Props) {
       setLoading(true)
       setError(null)
       if (!API_URL) {
-        setError('VITE_API_URL não configurada no frontend (.env).')
+        setError(
+          'API não configurada neste build (VITE_API_URL vazia). ' +
+            'No Hosting isso é esperado até publicar o backend no Cloud Run. ' +
+            'Em desenvolvimento local, use VITE_API_URL=http://127.0.0.1:8000 e suba o uvicorn.',
+        )
         setLoading(false)
         return
       }
@@ -49,8 +53,12 @@ export default function AdminSettingsPage({ profile }: Props) {
         if (!cancelled) setReady(payload)
       } catch {
         if (!cancelled) {
+          const isLocalTarget =
+            API_URL.includes('localhost') || API_URL.includes('127.0.0.1')
           setError(
-            'API offline. Suba o backend em localhost:8000 (uvicorn).',
+            isLocalTarget
+              ? 'API offline. No PC, rode o backend: uvicorn em 127.0.0.1:8000. No site Hosting, localhost não funciona — é preciso Cloud Run.'
+              : `API inacessível em ${API_URL}. Verifique o Cloud Run, CORS e se o serviço está no ar.`,
           )
         }
       } finally {
