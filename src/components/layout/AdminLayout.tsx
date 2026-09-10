@@ -90,15 +90,16 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-muted lg:grid lg:grid-cols-[260px_1fr]">
-      <aside className="sticky top-0 z-30 hidden h-svh flex-col overflow-hidden border-r border-border bg-navy-900 text-white lg:flex">
-        <div className="shrink-0 border-b border-white/10 px-5 py-5">
+      {/* Sidebar inteira, sem scroll interno; trava no fim ao rolar a página */}
+      <aside className="sticky top-[min(0px,calc(100vh-100%))] z-30 hidden self-start border-r border-border bg-navy-900 text-white lg:flex lg:w-full lg:flex-col">
+        <div className="border-b border-white/10 px-5 py-5">
           <Logo size="md" />
           <p className="mt-3 text-[11px] font-medium uppercase tracking-wider text-navy-200">
             Painel administrativo
           </p>
         </div>
 
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4">
+        <nav className="space-y-1 px-3 py-4">
           {adminNavItems.map((item) => {
             const Icon = iconMap[item.id]
             const isActive = item.id === activeNav
@@ -131,7 +132,7 @@ export default function AdminLayout({
           })}
         </nav>
 
-        <div className="shrink-0 border-t border-white/10 px-4 py-4">
+        <div className="border-t border-white/10 px-4 py-4">
           <Text variant="small" className="text-navy-300">
             {user.email}
           </Text>
