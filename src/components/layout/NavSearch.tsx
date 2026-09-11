@@ -255,6 +255,18 @@ export default function NavSearch({ className, onOpenChange }: NavSearchProps) {
             </ul>
           )}
 
+          {!loading && query.trim() && (
+            <div className="border-t border-border px-3 py-2">
+              <Link
+                to={`/busca?q=${encodeURIComponent(query.trim())}`}
+                onClick={() => updateOpen(false)}
+                className="block text-center text-xs font-semibold text-navy-700 hover:underline"
+              >
+                Ver todos os resultados
+              </Link>
+            </div>
+          )}
+
           {!loading && !hasSearched && query.trim() && (
             <p className="px-3 py-6 text-center text-xs text-muted-foreground">
               Digite para buscar notícias e categorias

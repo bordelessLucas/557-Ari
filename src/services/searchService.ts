@@ -6,6 +6,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { newsCategories } from '@/constants/navigation'
+import { articleHref } from '@/lib/articlePath'
 import { db } from '@/lib/firebase'
 import type { PortalState } from '@/types/user'
 import type { SearchResponse, SearchResult } from '@/types/search'
@@ -93,7 +94,7 @@ async function searchPublishedArticles(
       type: 'article',
       title,
       excerpt: summary,
-      href: `/noticias/${docSnap.id}`,
+      href: articleHref({ id: docSnap.id, adaptedTitle: title }),
       category: resolveCategoryLabel(categoryIds),
       publishedAt,
     })

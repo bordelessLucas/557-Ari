@@ -1,14 +1,12 @@
 import { Link } from 'react-router-dom'
+import { Alert, Badge, Heading, Spinner, Text } from '@/components/ui'
+import { articleHref } from '@/lib/articlePath'
 import {
-  Alert,
-  Badge,
-  Heading,
-  Spinner,
-  Text,
-} from '@/components/ui'
+  categoryLabel,
+  ImagePlaceholder,
+} from '@/components/portal/portalMedia'
 import { formatArticleDate } from '@/services/articleService'
 import type { Article } from '@/types/article'
-import { cn } from '@/lib/utils'
 
 interface NewsFeedProps {
   title: string
@@ -19,32 +17,12 @@ interface NewsFeedProps {
   error: string | null
   emptyTitle?: string
   emptyDescription?: string
-  /** Se informado, mostra “Carregar mais” quando há mais itens potenciais */
   onLoadMore?: () => void
   loadingMore?: boolean
   hasMore?: boolean
 }
 
-function categoryLabel(
-  ids: string[],
-  categoryNames: Record<string, string>,
-): string {
-  if (!ids.length) return 'Notícia'
-  return categoryNames[ids[0]] ?? ids[0]
-}
-
-function ImagePlaceholder({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn(
-        'bg-linear-to-br from-navy-700 to-red-800',
-        className,
-      )}
-      aria-hidden
-    />
-  )
-}
-
+/** Feed genérico (legado). Home/categoria usam layouts editoriais dedicados. */
 export default function NewsFeed({
   title,
   subtitle,
@@ -65,7 +43,7 @@ export default function NewsFeed({
   return (
     <div className="space-y-8">
       <header className="space-y-1">
-        <Heading level={2} className="font-semibold tracking-tight">
+        <Heading level={2} className="font-display font-bold tracking-tight">
           {title}
         </Heading>
         {subtitle && (
@@ -96,10 +74,10 @@ export default function NewsFeed({
         <>
           <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
             <Link
-              to={`/noticias/${featured.id}`}
+              to={articleHref(featured)}
               className="group block lg:col-span-7"
             >
-              <article className="overflow-hidden">
+              <article>
                 {featured.imageUrl ? (
                   <img
                     src={featured.imageUrl}
@@ -114,7 +92,7 @@ export default function NewsFeed({
                   <Badge variant="default">
                     {categoryLabel(featured.categoryIds, categoryNames)}
                   </Badge>
-                  <h3 className="text-2xl font-semibold leading-tight tracking-tight text-foreground transition-colors group-hover:text-navy-700 sm:text-3xl">
+                  <h3 className="font-display text-2xl font-bold leading-tight tracking-tight text-foreground transition-colors group-hover:text-navy-700 sm:text-3xl">
                     {featured.adaptedTitle}
                   </h3>
                   <p className="text-base leading-relaxed text-muted-foreground">
@@ -132,13 +110,13 @@ export default function NewsFeed({
                 {side.map((item) => (
                   <Link
                     key={item.id}
-                    to={`/noticias/${item.id}`}
+                    to={articleHref(item)}
                     className="group flex gap-4 py-4 first:pt-0 last:pb-0"
                   >
                     {item.imageUrl ? (
                       <img
                         src={item.imageUrl}
-                        alt={item.adaptedTitle}
+                        alt=""
                         className="size-20 shrink-0 object-cover sm:size-24"
                         loading="lazy"
                       />
@@ -149,7 +127,7 @@ export default function NewsFeed({
                       <Badge variant="default">
                         {categoryLabel(item.categoryIds, categoryNames)}
                       </Badge>
-                      <p className="text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-navy-700 sm:text-base">
+                      <p className="font-display text-sm font-bold leading-snug text-foreground transition-colors group-hover:text-navy-700 sm:text-base">
                         {item.adaptedTitle}
                       </p>
                       <Text variant="small" className="line-clamp-2">
@@ -164,23 +142,20 @@ export default function NewsFeed({
 
           {rest.length > 0 && (
             <section className="space-y-4 border-t border-border pt-8">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">
-                  Mais notícias
-                </h3>
-                <Text variant="small">Outras matérias publicadas recentemente.</Text>
-              </div>
+              <h3 className="font-display text-lg font-bold text-foreground">
+                Mais notícias
+              </h3>
               <ul className="divide-y divide-border">
                 {rest.map((item) => (
                   <li key={item.id}>
                     <Link
-                      to={`/noticias/${item.id}`}
+                      to={articleHref(item)}
                       className="group flex items-center gap-4 py-4"
                     >
                       {item.imageUrl ? (
                         <img
                           src={item.imageUrl}
-                          alt={item.adaptedTitle}
+                          alt=""
                           className="h-16 w-24 shrink-0 object-cover"
                           loading="lazy"
                         />
@@ -191,7 +166,7 @@ export default function NewsFeed({
                         <Badge variant="muted">
                           {categoryLabel(item.categoryIds, categoryNames)}
                         </Badge>
-                        <p className="font-semibold text-foreground transition-colors group-hover:text-navy-700">
+                        <p className="font-display font-bold text-foreground transition-colors group-hover:text-navy-700">
                           {item.adaptedTitle}
                         </p>
                         <Text variant="small" className="line-clamp-2">

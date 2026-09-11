@@ -15,7 +15,7 @@ import CategoryPage from '@/pages/CategoryPage'
 import Home from '@/pages/Home'
 import Login from '@/pages/Login'
 import PrivacyPage from '@/pages/PrivacyPage'
-import Register from '@/pages/Register'
+import SearchPage from '@/pages/SearchPage'
 import TermsPage from '@/pages/TermsPage'
 import Welcome from '@/pages/Welcome'
 import { auth } from '@/lib/firebase'
@@ -114,6 +114,7 @@ function PortalRoutes({
           element={<ArticlePage user={user} />}
         />
         <Route path="/noticias" element={<Navigate to="/" replace />} />
+        <Route path="/busca" element={<SearchPage user={user} />} />
         <Route path="/sobre" element={<AboutPage user={user} />} />
         <Route path="/privacidade" element={<PrivacyPage user={user} />} />
         <Route path="/termos" element={<TermsPage user={user} />} />

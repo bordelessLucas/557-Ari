@@ -4,6 +4,7 @@
   /* Tipografia */
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     Roboto, sans-serif;
+  --font-display: 'Source Serif 4', 'Georgia', 'Times New Roman', serif;
 
   /* Navy — cor principal (logo, header) */
   --color-navy-50: #eef4fb;
@@ -97,5 +98,9 @@
   textarea:not([readonly]):not([disabled]),
   [contenteditable='true'] {
     caret-color: auto;
+  }
+
+  .font-display {
+    font-family: var(--font-display);
   }
 }

@@ -1,0 +1,43 @@
+---
+description: Comando /prod — commit, push e deploy de produção (adaptar por projeto)
+alwaysApply: true
+---
+
+# Comando `/prod`
+
+Quando o usuário digitar **`/prod`** (sozinho ou no início da mensagem), executar o fluxo de **produção** sem pedir confirmação extra de “posso commit/deploy?”, a menos que falte credencial ou haja risco destrutivo (force push, apagar recurso).
+
+## Ordem obrigatória
+
+1. **Detectar alvos de deploy deste repositório** (não assumir o mesmo stack de outro projeto):
+   - Procurar: `firebase.json`, `netlify.toml`, `vercel.json`, `render.yaml`, `Dockerfile` + docs Cloud Run, `wrangler.toml`, scripts `deploy*` no `package.json`, pastas `backend/` com docs de deploy.
+   - Preferir docs do próprio repo (`DEPLOY*.md`, `README`, `.cursor/rules`).
+2. **Build** do que for para produção (ex.: `npm run build` antes de Hosting estático).
+3. **Git**: `status` + `diff` + `log` → stage relevante (nunca `.env` / secrets) → commit (mensagem clara) → `git push` na branch atual.
+4. **Deploy** só nos alvos identificados e **prontos** neste momento.
+5. Responder com: commit hash, remote, URL(s) de produção e o que **não** foi deployado (e por quê).
+
+## Este projeto (557-Ari / Agência da Notícia)
+
+| Camada | Alvo | Comando / notas |
+|--------|------|-----------------|
+| Front (UI) | Firebase Hosting `ari-b0f40` | `npm run build` → `firebase deploy --only hosting --project ari-b0f40` → https://ari-b0f40.web.app |
+| Firestore rules/indexes | Firebase | Só se houver mudança em `firestore.rules` / `firestore.indexes.json`: `firebase deploy --only firestore --project ari-b0f40` |
+| API FastAPI | Cloud Run (quando Blaze/infra ok) | Ver `backend/DEPLOY-CLOUD-RUN.md` — **não** forçar se plano Spark / API ainda local |
+
+No `/prod` atual deste repo: **sempre** front Hosting (+ Firestore se mudou rules). API Cloud Run só se o usuário pedir explicitamente ou se a infra já estiver liberada e documentada como ativa.
+
+## Adaptação em outros projetos
+
+- **Netlify** → `netlify deploy --prod` / Git + site linkado  
+- **Vercel** → `vercel --prod` / Git integration  
+- **Render** → MCP/API Render ou dashboard + `render.yaml`  
+- **Só Git** → commit + push (CI faz o resto); informar o pipeline  
+
+Nunca copiar o alvo de deploy de outro workspace sem verificar os arquivos deste.
+
+## Segurança
+
+- Não commitiar secrets (`.env`, service accounts, keys).
+- Não `push --force` em `main`/`master`.
+- Rebuildar artefatos (`dist/`) antes de Hosting estático — não publicar `dist` velho.

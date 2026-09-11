@@ -2,10 +2,26 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { type User } from 'firebase/auth'
 import AppLayout from '@/components/layout/AppLayout'
-import NewsFeed from '@/components/portal/NewsFeed'
-import { Container, Text } from '@/components/ui'
+import PortalSidebar from '@/components/portal/PortalSidebar'
+import {
+  categoryLabel,
+  ImagePlaceholder,
+} from '@/components/portal/portalMedia'
 import { newsCategories } from '@/constants/navigation'
-import { listPortalArticlesByCategory } from '@/services/articleService'
+import { articleHref } from '@/lib/articlePath'
+import {
+  Alert,
+  Badge,
+  Container,
+  Heading,
+  Spinner,
+  Text,
+} from '@/components/ui'
+import {
+  formatArticleDate,
+  listPortalArticles,
+  listPortalArticlesByCategory,
+} from '@/services/articleService'
 import { listCategories } from '@/services/categoryService'
 import type { Article } from '@/types/article'
 
@@ -25,6 +41,7 @@ function resolveCategoryLabel(
 export default function CategoryPage({ user }: CategoryPageProps) {
   const { categorySlug = '' } = useParams<{ categorySlug: string }>()
   const [articles, setArticles] = useState<Article[]>([])
+  const [allLatest, setAllLatest] = useState<Article[]>([])
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,16 +55,21 @@ export default function CategoryPage({ user }: CategoryPageProps) {
       setLoading(true)
       setError(null)
       try {
-        const [list, categories] = await Promise.all([
-          listPortalArticlesByCategory(categorySlug, 40),
+        const [list, latest, categories] = await Promise.all([
+          listPortalArticlesByCategory(categorySlug, 48),
+          listPortalArticles(20),
           listCategories().catch(() => []),
         ])
         if (cancelled) return
         setArticles(list)
+        setAllLatest(latest)
         const map: Record<string, string> = {}
         categories.forEach((cat) => {
           map[cat.id] = cat.name
           if (cat.slug) map[cat.slug] = cat.name
+        })
+        newsCategories.flat().forEach((cat) => {
+          if (!map[cat.slug]) map[cat.slug] = cat.label
         })
         setCategoryNames(map)
       } catch (err) {
@@ -55,7 +77,7 @@ export default function CategoryPage({ user }: CategoryPageProps) {
           setError(
             err instanceof Error
               ? err.message
-              : 'Não foi possível carregar esta categoria. Tente novamente.',
+              : 'Não foi possível carregar esta categoria.',
           )
         }
       } finally {
@@ -68,30 +90,125 @@ export default function CategoryPage({ user }: CategoryPageProps) {
     }
   }, [categorySlug])
 
+  const lead = articles[0]
+  const grid = articles.slice(1)
+
   return (
     <AppLayout
       user={user}
       documentTitle={`${label} — Agência da Notícia`}
+      activeCategorySlug={categorySlug}
     >
-      <Container size="lg" className="space-y-4">
-        <Text variant="small">
+      <Container size="lg" className="space-y-6 py-6 sm:py-8">
+        <nav className="text-sm text-muted-foreground">
           <Link to="/" className="text-navy-600 hover:underline">
             Início
           </Link>
-          <span className="text-muted-foreground"> / Notícias / </span>
+          <span> / </span>
           <span className="font-medium text-foreground">{label}</span>
-        </Text>
+        </nav>
 
-        <NewsFeed
-          title={label}
-          subtitle={`Notícias da categoria ${label}.`}
-          articles={articles}
-          categoryNames={categoryNames}
-          loading={loading}
-          error={error}
-          emptyTitle={`Nenhuma matéria em ${label}`}
-          emptyDescription="Ainda não há publicações nesta categoria. Volte ao início ou escolha outra seção no menu."
-        />
+        <header className="space-y-2 border-b border-border pb-5">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-red-700">
+            Editoria
+          </p>
+          <Heading
+            level={1}
+            className="font-display text-3xl font-bold tracking-tight sm:text-4xl"
+          >
+            {label}
+          </Heading>
+          <Text variant="muted" className="max-w-xl">
+            Arquivo de matérias em {label}.
+          </Text>
+        </header>
+
+        {error && (
+          <Alert variant="destructive">
+            <p className="text-sm">{error}</p>
+          </Alert>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Spinner size="lg" />
+          </div>
+        ) : !lead ? (
+          <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+            <Heading level={3}>Nenhuma matéria em {label}</Heading>
+            <Text variant="muted" className="mx-auto mt-2 max-w-md">
+              Ainda não há publicações nesta categoria.
+            </Text>
+          </div>
+        ) : (
+          <div className="grid gap-10 lg:grid-cols-12">
+            <div className="space-y-8 lg:col-span-8">
+              <Link to={articleHref(lead)} className="group block space-y-3">
+                {lead.imageUrl ? (
+                  <img
+                    src={lead.imageUrl}
+                    alt=""
+                    className="aspect-16/9 w-full object-cover"
+                    loading="eager"
+                  />
+                ) : (
+                  <ImagePlaceholder className="aspect-16/9 w-full" />
+                )}
+                <Badge variant="default">{label}</Badge>
+                <h2 className="font-display text-2xl font-bold leading-tight tracking-tight transition-colors group-hover:text-navy-700 sm:text-3xl">
+                  {lead.adaptedTitle}
+                </h2>
+                <p className="text-base text-muted-foreground">
+                  {lead.adaptedSummary}
+                </p>
+                <Text variant="small">
+                  {formatArticleDate(lead.publishedAt)}
+                </Text>
+              </Link>
+
+              <div className="grid gap-6 sm:grid-cols-2">
+                {grid.map((item) => (
+                  <Link
+                    key={item.id}
+                    to={articleHref(item)}
+                    className="group flex flex-col gap-3 border-t border-border pt-4"
+                  >
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt=""
+                        className="aspect-16/10 w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <ImagePlaceholder className="aspect-16/10 w-full" />
+                    )}
+                    <Badge variant="muted" className="w-fit text-[10px]">
+                      {categoryLabel(item.categoryIds, categoryNames)}
+                    </Badge>
+                    <h3 className="font-display text-base font-bold leading-snug transition-colors group-hover:text-navy-700 sm:text-lg">
+                      {item.adaptedTitle}
+                    </h3>
+                    <Text variant="small" className="line-clamp-3">
+                      {item.adaptedSummary}
+                    </Text>
+                    <Text variant="small">
+                      {formatArticleDate(item.publishedAt)}
+                    </Text>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div className="lg:col-span-4">
+              <PortalSidebar
+                latest={allLatest}
+                mostRead={articles.slice(0, 5)}
+                categoryNames={categoryNames}
+              />
+            </div>
+          </div>
+        )}
       </Container>
     </AppLayout>
   )

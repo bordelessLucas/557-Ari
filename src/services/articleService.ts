@@ -10,6 +10,7 @@ import {
   type Timestamp,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { parseArticleParam, slugifyTitle } from '@/lib/articlePath'
 import type { Article, ArticleStatus } from '@/types/article'
 
 function toDate(value: unknown): Date | null {
@@ -110,6 +111,27 @@ export async function getArticleById(id: string): Promise<Article | null> {
   const snap = await getDoc(doc(db, 'articles', id))
   if (!snap.exists()) return null
   return mapArticle(snap.id, snap.data())
+}
+
+export async function resolvePortalArticle(
+  param: string,
+): Promise<Article | null> {
+  const { id, slug } = parseArticleParam(param)
+
+  if (id) {
+    const byId = await getArticleById(id)
+    if (byId && byId.status === 'published') return byId
+  }
+
+  if (slug) {
+    const published = await listPortalArticles(80)
+    const match = published.find(
+      (item) => slugifyTitle(item.adaptedTitle) === slug,
+    )
+    if (match) return match
+  }
+
+  return null
 }
 
 export function formatArticleDate(value: Date | null): string {

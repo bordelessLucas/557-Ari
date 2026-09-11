@@ -24,12 +24,15 @@ interface UserMenuProps {
   user: User
   selectedState: PortalState
   onStateChange: (state: PortalState) => void
+  /** Masthead do leitor: controle mais discreto */
+  compact?: boolean
 }
 
 export default function UserMenu({
   user,
   selectedState,
   onStateChange,
+  compact = false,
 }: UserMenuProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [open, setOpen] = useState(false)
@@ -70,10 +73,21 @@ export default function UserMenu({
         type="button"
         aria-expanded={open}
         aria-haspopup="true"
+        aria-label={compact ? 'Abrir menu da conta' : undefined}
         onClick={() => setOpen((current) => !current)}
-        className="flex max-w-[220px] items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10 sm:px-3"
+        className={cn(
+          'flex items-center gap-2 rounded-lg text-sm font-medium text-white transition-colors hover:bg-white/10',
+          compact ? 'px-2 py-2 sm:px-2.5' : 'max-w-[220px] px-2 py-2 sm:px-3',
+        )}
       >
-        <span className="truncate">Olá, {firstName}</span>
+        {compact ? (
+          <>
+            <UserRound className="size-4 shrink-0" strokeWidth={1.75} />
+            <span className="hidden text-xs font-medium sm:inline">Conta</span>
+          </>
+        ) : (
+          <span className="truncate">Olá, {firstName}</span>
+        )}
         <ChevronDown
           className={cn(
             'size-4 shrink-0 transition-transform duration-200',
